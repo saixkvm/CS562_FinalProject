@@ -1,0 +1,11 @@
+Possible values for conditions
+
+>
+>= 
+=
+<
+<=
+!=
+AND
+NOT
+OR 
