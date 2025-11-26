@@ -21,7 +21,7 @@ def query():
     
     _global = []
     
-    
+
     def input_processing():
         with open("input.txt", "r") as f:
             data = f.read()
@@ -285,7 +285,7 @@ def query():
         _global.append(row)
 
     
-    
+
     
     
     return tabulate.tabulate(_global,
