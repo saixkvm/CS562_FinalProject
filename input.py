@@ -92,26 +92,30 @@ def predicate_list_splitting_by_types(s):
 
 predicatehashmap = {}
 for p in predicateList:
-    tmplist = predicate_list_splitting_by_ops(p)
-    for t in tmplist:
-        condition = t.split(".")
-        if condition[0] in predicatehashmap:
-            predicatehashmap[condition[0]].append(condition[1])
-        else:
-            predicatehashmap[condition[0]] = [condition[1]]  
+    #tmplist = predicate_list_splitting_by_ops(p)
+    cond = p.split(".")
+    predicatehashmap[cond[0]] = p
+    # for t in tmplist:
+    #     condition = t.split(".")
+    #     if condition[0] in predicatehashmap:
+    #         predicatehashmap[condition[0]].append(condition[1])
+    #     else:
+    #         predicatehashmap[condition[0]] = [condition[1]]  
 
 
 # HAVING CLAUSE
 havingClause = parts[6].split('\n')[1]
 
-print(select_attributes)
-print(numberOfGroupingVariables)
-print(groupingattributes)
-print(vectorOfAggregateFunctions)
-print(predicatehashmap)
+print("Select attributes", select_attributes)
+print("Number", numberOfGroupingVariables)
+print("Grouping attributes", groupingattributes)
+print("vector of agg funcs", vectorOfAggregateFunctions)
+print("pred hashmap", predicatehashmap)
 print(havingClause)
 def aggrfunctioncompute(s):
     return s.split("_")
+
+
 
 aggrfuncmap = {}
 for key in vectorOfAggregateFunctions:
@@ -122,5 +126,8 @@ for key in vectorOfAggregateFunctions:
             aggrfuncmap[key][key2] = float('inf')
         if tmp[0] == 'max':
                 aggrfuncmap[key][key2] = float('-inf')
+        if tmp[0] == 'avg':
+            # [Total Sum, Count, Avg]
+            aggrfuncmap[key][key2] = [0,0,0]
 
 print(aggrfuncmap)
