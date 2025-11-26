@@ -2,14 +2,16 @@ with open("input.txt", "r") as f:
     data = f.read()
 
 parts = data.split(":")
-
+for part in parts:
+    print(repr(part))
 # SELECT ATTRIBUTES LIST
 select_attributes = parts[1].split('\n')
 select_attributes.pop(0)
 select_attributes.pop(len(select_attributes)-1)
-select_attributes = select_attributes[0].split(',')
-for i in range(len(select_attributes)):
-    select_attributes[i] = select_attributes[i].strip()
+select_attributes = set(map(lambda x: x.strip(),select_attributes[0].split(',')))
+# select_attributes = select_attributes[0].split(',')
+# for i in range(len(select_attributes)):
+#     select_attributes[i] = select_attributes[i].strip()
 
 # NUMBER OF GROUPING VARIABLES
 numberOfGroupingVariables = parts[2].split('\n')[1]

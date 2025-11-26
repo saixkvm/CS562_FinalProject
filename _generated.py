@@ -409,7 +409,6 @@ def query():
                                 avg = num/denom
                                 mfstructdict[groupingattributekey][key][index] = [num, denom, avg]
 
-    print(mfstructdict)
     
     
     

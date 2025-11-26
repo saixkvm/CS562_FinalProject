@@ -3,7 +3,7 @@ import psycopg2
 import psycopg2.extras
 import tabulate
 from dotenv import load_dotenv
-def main():
+def query():
     """
     This is the generator code. It should take in the MF structure and generate the code
     needed to run the query. That generated code should be saved to a 
@@ -42,7 +42,7 @@ def main():
 
         # GROUPING VARIABLES LIST
         groupingvariables = parts[3].split('\n')[1]
-        groupingattributes = list(map(lambda x: x.strip(),groupingvariables.split(',')))
+        groupingattributes = set(map(lambda x: x.strip(),groupingvariables.split(',')))
 
         # VECTOR OF AGGREGATE FUNCTIONS
         vectorOfAggregateFunctions = parts[4].split('\n')[1]
@@ -128,6 +128,7 @@ def main():
 
 
         # HAVING CLAUSE
+        # In case there are aggregates in the having clause but not in the vectorOfAggregateFunctions
         havingClause = None
         if parts[6].strip() != "" or parts[6].strip().upper() != "NONE":
             havingClause = parts[6].split('\n')[1]
@@ -460,20 +461,27 @@ def main():
                   if not evaluateConditions(groupingattributekey, havingClause, eval_having):
                       del mfstructdict[groupingattributekey]
                       
-    # for grouping_key, aggrfuncmap in mfstructdict.items():
-    #     row = {attr: aggrfuncmap[attr] for attr in groupingattributes}
+                      
+    for grouping_key, aggrfuncmap in mfstructdict.items():
+        row = {}
         
-    #     for gv_key, func_values in aggrfuncmap.items():
-    #         if gv_key in groupingattributes:
-    #             continue  # already added
-    #         flat_values = []
-    #         for val in func_values:
-    #             if isinstance(val, list) and len(val) == 3:  # avg: [sum, count, avg]
-    #                 flat_values.append(val[2])  # use the average
-    #             else:
-    #                 flat_values.append(val)
-    #         row[gv_key] = flat_values
-    #     _global.append(row)
+        for attr in select_attributes:
+            if attr in groupingattributes:
+                row[attr] = aggrfuncmap[attr]
+            else:
+                gV, agg = attr.split("_",1)
+                idx = get_agg_idx(gV, agg)
+                if isinstance(mfstructdict[grouping_key][gV][idx], list): #AVG
+                    row[attr] = mfstructdict[grouping_key][gV][idx][2]
+                else:
+                    row[attr] = mfstructdict[grouping_key][gV][idx]
+        _global.append(row)
+    
+    return tabulate.tabulate(_global,
+                        headers="keys", tablefmt="psql")
+
+def main():
+    print(query())
         
 if "__main__" == __name__:
     main()
