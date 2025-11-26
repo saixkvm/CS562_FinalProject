@@ -1,3 +1,4 @@
+# 
 # hset = set()
 # res = []
 # for i in range(len(vectorOfAggregateFunctions)):
@@ -21,4 +22,25 @@ for i in range(len(vectorOfAggregateFunctions)):
         hset[attr].append(agg)
 
 vectorOfAggregateFunctions = hset
-    
+'''
+GROUPING ATTRIBUTES LIST
+['cust']
+
+VECTOR OF AGGREGATE FUNCTIONS
+'1': ['min_quant'], 
+'3': ['avg_quant', 'sum_quant'], 
+'2': ['sum_quant']
+
+
+PRECIATE HASHMAP
+'1': ["state='NY'"], 
+'2': ["state='NJ'"], 
+'3': ["state='CT'"]
+
+HAVING CLAUSE
+1_sum_quant > 2 * 2_sum_quant or 1_avg_quant > 3_avg_quant
+
+'1': [inf], 
+'3': [[0, 0, 0], 0], 
+'2': [0]
+    '''
