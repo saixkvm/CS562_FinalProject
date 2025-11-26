@@ -58,7 +58,6 @@ predicateList.pop(0)
 predicateList.pop(len(predicateList)-1)
 
 
-print(predicateList)
 def predicate_list_splitting_by_ops(s):
     ops = [' AND ', ' OR ', ' NOT ']
     andsplitlist = s.split(ops[0]) # splitting by AND operator
@@ -104,8 +103,26 @@ for p in predicateList:
 
 
 # HAVING CLAUSE
-havingClause = parts[6].split('\n')[1]
+havingClause = None
+if parts[6].strip() != "" or parts[6].strip().upper() != "NONE":
+    havingClause = parts[6].split('\n')[1]
 
+    c = 0
+    while c < len(havingClause):
+        if havingClause[c] in " =*><!()/+-":
+            c += 1
+            continue
+        
+        tmp = ""        
+        while c < len(havingClause) and havingClause[c] not in " =*><!()/+-":
+            tmp += havingClause[c]
+            c += 1
+        
+        if "_" in tmp:
+            group_variable, agg_func = tmp.split("_",1)
+            if agg_func not in vectorOfAggregateFunctions[group_variable]:
+                vectorOfAggregateFunctions[group_variable].append(agg_func)
+        
 print("Select attributes", select_attributes)
 print("Number", numberOfGroupingVariables)
 print("Grouping attributes", groupingattributes)

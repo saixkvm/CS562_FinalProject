@@ -1,191 +1,35 @@
-import subprocess
-
-def input_processing():
-    with open("input.txt", "r") as f:
-        data = f.read()
-
-    parts = data.split(":")
-
-    # SELECT ATTRIBUTES LIST
-    select_attributes = parts[1].split('\n')
-    select_attributes.pop(0)
-    select_attributes.pop(len(select_attributes)-1)
-    select_attributes = select_attributes[0].split(',')
-    for i in range(len(select_attributes)):
-        select_attributes[i] = select_attributes[i].strip()
-
-    # NUMBER OF GROUPING VARIABLES
-    numberOfGroupingVariables = parts[2].split('\n')[1]
-    # print(numberOfGroupingVariables)
-
-    # GROUPING VARIABLES LIST
-    groupingvariables = parts[3].split('\n')[1]
-    groupingattributes = list(map(lambda x: x.strip(),groupingvariables.split(',')))
-
-    # VECTOR OF AGGREGATE FUNCTIONS
-    vectorOfAggregateFunctions = parts[4].split('\n')[1]
-    vectorOfAggregateFunctions = vectorOfAggregateFunctions.split(',')
-    for i in range(len(vectorOfAggregateFunctions)):
-        vectorOfAggregateFunctions[i] = vectorOfAggregateFunctions[i].strip()
-
-    # hset = set()
-    # res = []
-    # for i in range(len(vectorOfAggregateFunctions)):
-    #     attr = vectorOfAggregateFunctions[i].split("_")[0]
-    #     if attr not in hset:
-    #         tmp = [vectorOfAggregateFunctions[i]]
-    #         hset.add(attr)
-    #         for j in range(i+1, len(vectorOfAggregateFunctions)):
-    #             checkattr = vectorOfAggregateFunctions[j].split("_")[0]
-    #             if checkattr == attr:
-    #                 tmp.append(vectorOfAggregateFunctions[j])
-    #         res.append(tmp)
-
-    # vectorOfAggregateFunctions = res
-
-    hset = {}
-    for i in range(len(vectorOfAggregateFunctions)):
-        attr_agg = vectorOfAggregateFunctions[i].split("_",1)
-        attr, agg  = attr_agg[0], attr_agg[1]
-        if attr not in hset:
-            hset[attr] = [agg]
-        else:
-            if not agg in hset[attr]:
-                hset[attr].append(agg)
-
-    vectorOfAggregateFunctions = hset
-
-    # PREDICATE LIST
-    predicateList = parts[5].split('\n')
-    predicateList.pop(0)
-    predicateList.pop(len(predicateList)-1)
-
-    def predicate_list_splitting_by_ops(s):
-        ops = [' AND ', ' OR ', ' NOT ']
-        andsplitlist = s.split(ops[0]) # splitting by AND operator
-        res = []
-        for andsplit in andsplitlist:
-            orsplitlist = andsplit.split(ops[1])
-            for orsplit in orsplitlist:
-                notsplitlist = orsplit.split(ops[2])
-                for notsplit in notsplitlist:
-                    res.append(notsplit)
-        for r in range(len(res)):
-            res[r] = res[r].strip()
-        return res
-
-    def predicate_list_splitting_by_types(s):
-        types = ['>=', '<=', "!=", '=', '>', "<"]
-
-        reslist = []
-        for t in types:
-            if t in s:
-                reslist = s.split(t)
-                break 
-        tmp = reslist[0].split('.')
-        tmp2 = reslist[1]
-        reslist = []
-        for i in range(len(tmp)):
-            reslist.append(tmp[i])
-        reslist.append(tmp2)
-        return reslist
-
-    predicatehashmap = {}
-    # for p in predicateList:
-    #     tmplist = predicate_list_splitting_by_ops(p)
-    #     for t in tmplist:
-    #         condition = t.split(".")
-    #         if condition[0] in predicatehashmap:
-    #             predicatehashmap[condition[0]].append(condition[1])
-    #         else:
-    #             predicatehashmap[condition[0]] = [condition[1]]  
-    for p in predicateList:
-        #tmplist = predicate_list_splitting_by_ops(p)
-        cond = p.split(".")
-        predicatehashmap[cond[0]] = p
-
-
-    # HAVING CLAUSE
-    havingClause = parts[6].split('\n')[1]
-
-    # print(select_attributes)
-    # print(numberOfGroupingVariables)
-    # print(groupingattributes)
-    # print(vectorOfAggregateFunctions)
-    # print(predicatehashmap)
-    # print(havingClause)
-
-    return [select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause]
-
-def aggrfunctioncompute(s):
-    return s.split("_")
-
-def get_col_op_value(cond):
-    res = cond.split('.')
-    tmp = res[1]
-    operator = ''
-    for op in ["!=", ">=", "<=", ">", "<", "="]:
-        if op in tmp:
-            operator = op
-            break 
-    tmp = tmp.split(op)
-    col = tmp[0]
-    val = tmp[1]
-
-    if val.isdigit():
-        val = int(val)
-
-    return [col, op, val]
-
-def evalandcond(row, cond):
-    evalconds = cond.split(' AND ')
-    finalbool = True 
-    for cond in evalconds:
-        [col, op, val] = get_col_op_value(cond)
-        match op:
-            case "!=":
-                finalbool = finalbool and row[col] != val
-            case ">=":
-                finalbool = finalbool and row[col] >= val
-            case "<=":
-                finalbool = finalbool and row[col] <= val
-            case ">":
-                finalbool = finalbool and row[col] > val
-            case "<":
-                finalbool = finalbool and row[col] < val
-            case "=":
-                finalbool = finalbool and row[col] == val
-            case _:
-                print(f"Unknown command: {op}")
-
-    return finalbool
-
-def evaluateConditions(row, predlistforgroupingvariable):
-    # split by OR'S
-    evalconds = predlistforgroupingvariable.split(' OR ')
-    finalbool = False
-    for cond in evalconds:
-        # cond can contain ANDS now
-        finalbool = finalbool or evalandcond(row, cond)
-    return finalbool
-
+import os
+import psycopg2
+import psycopg2.extras
+import tabulate
+from dotenv import load_dotenv
 def main():
     """
     This is the generator code. It should take in the MF structure and generate the code
     needed to run the query. That generated code should be saved to a 
     file (e.g. _generated.py) and then run.
     """
+    load_dotenv()
 
+    user = os.getenv('USER')
+    password = os.getenv('PASSWORD')
+    dbname = os.getenv('DBNAME')
+
+    conn = psycopg2.connect("dbname="+dbname+" user="+user+" password="+password,
+                            cursor_factory=psycopg2.extras.DictCursor)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM sales")
     
-    body = """
+    _global = []
+
     def input_processing():
         with open("input.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
-
+        
         # SELECT ATTRIBUTES LIST
-        select_attributes = parts[1].split('\\n')
+        select_attributes = parts[1].split('\n')
         select_attributes.pop(0)
         select_attributes.pop(len(select_attributes)-1)
         select_attributes = select_attributes[0].split(',')
@@ -193,15 +37,15 @@ def main():
             select_attributes[i] = select_attributes[i].strip()
 
         # NUMBER OF GROUPING VARIABLES
-        numberOfGroupingVariables = parts[2].split('\\n')[1]
+        numberOfGroupingVariables = parts[2].split('\n')[1]
         # print(numberOfGroupingVariables)
 
         # GROUPING VARIABLES LIST
-        groupingvariables = parts[3].split('\\n')[1]
+        groupingvariables = parts[3].split('\n')[1]
         groupingattributes = list(map(lambda x: x.strip(),groupingvariables.split(',')))
 
         # VECTOR OF AGGREGATE FUNCTIONS
-        vectorOfAggregateFunctions = parts[4].split('\\n')[1]
+        vectorOfAggregateFunctions = parts[4].split('\n')[1]
         vectorOfAggregateFunctions = vectorOfAggregateFunctions.split(',')
         for i in range(len(vectorOfAggregateFunctions)):
             vectorOfAggregateFunctions[i] = vectorOfAggregateFunctions[i].strip()
@@ -234,7 +78,7 @@ def main():
         vectorOfAggregateFunctions = hset
 
         # PREDICATE LIST
-        predicateList = parts[5].split('\\n')
+        predicateList = parts[5].split('\n')
         predicateList.pop(0)
         predicateList.pop(len(predicateList)-1)
 
@@ -285,8 +129,25 @@ def main():
 
         # HAVING CLAUSE
         havingClause = None
-        if parts[6].strip() != "":
-            havingClause = parts[6].split('\\n')[1]
+        if parts[6].strip() != "" or parts[6].strip().upper() != "NONE":
+            havingClause = parts[6].split('\n')[1]
+
+            c = 0
+            while c < len(havingClause):
+                if havingClause[c] in " =*><!()/+-":
+                    c += 1
+                    continue
+            
+                tmp = ""        
+                while c < len(havingClause) and havingClause[c] not in " =*><!()/+-":
+                    tmp += havingClause[c]
+                    c += 1
+            
+                if "_" in tmp:
+                    group_variable, agg_func = tmp.split("_",1)
+                    if agg_func not in vectorOfAggregateFunctions[group_variable]:
+                        vectorOfAggregateFunctions[group_variable].append(agg_func)
+
 
         # print(select_attributes)
         # print(numberOfGroupingVariables)
@@ -300,11 +161,16 @@ def main():
     def aggrfunctioncompute(s):
         return s.split("_")
 
-    def get_aggr_idx(gV, aggr_func):
-        for idx, aggr in enumerate(vectorOfAggregateFunctions[gV]):
-            if aggr == aggr_func:
+    def get_agg_idx(gV, agg_func):
+        for idx, agg in enumerate(vectorOfAggregateFunctions[gV]):
+            if agg == agg_func:
                 return idx
             
+            
+    # def has_grouping_variables(group, gVs):
+    #     for gv in gVs
+    #     return True
+    
     
     def get_col_op_value(cond):
         res = cond.split('.')
@@ -314,7 +180,7 @@ def main():
             if op in tmp:
                 operator = op
                 break 
-        tmp = tmp.split(op)
+        tmp = tmp.split(operator)
         col = tmp[0]
         val = tmp[1]
 
@@ -324,7 +190,25 @@ def main():
         if isinstance(val, str):
             val = val.strip("'")
 
-        return [col, op, val]
+        return [col, operator, val]
+
+    def get_expr_value(cond):
+        operator = ''
+        for op in ["!=", ">=", "<=", ">", "<", "="]:
+            if op in cond:
+                operator = op
+                break 
+        tmp = cond.split(operator)
+        expr1 = tmp[0]
+        expr2 = tmp[1]
+
+        if isinstance(expr1, str):
+            expr1 = expr1.strip("'")
+
+        if isinstance(expr2, str):
+            expr2 = expr2.strip("'")
+            
+        return [expr1, operator, expr2]
     
     
     def tokenize_expr(group, expr):
@@ -376,10 +260,12 @@ def main():
                     output_stack.append(tmp)
                 
                 else: #Its a variable
-                    group_variable, aggr_func = tmp.split("_",1)
-                    idx = get_aggr_idx(group_variable, aggr_func)
-                    num = str(mfstructdict[group][group_variable][idx])
-                    output_stack.append(num)
+                    group_variable, agg_func = tmp.split("_",1)
+                    idx = get_agg_idx(group_variable, agg_func)
+                    num = mfstructdict[group][group_variable][idx]
+                    if isinstance(num, list): #AVG
+                        num = num[2]
+                    output_stack.append(str(num))
                 
                 last_token = tmp
                 continue
@@ -391,10 +277,10 @@ def main():
         
         return output_stack
     
-    def eval_expr(expr):
+    def eval_expr(group, expr):
         #Reverse Polish Notation
         #Shoutout Leetcode 150
-        tokens = tokenize_expr(expr)
+        tokens = tokenize_expr(group, expr)
         stack = []
         
         for token in tokens:
@@ -410,15 +296,15 @@ def main():
                     stack.append(a * b)
                 elif token == '/':
                     stack.append(a / b)
-                else:
-                    stack.append(token)
+            else:
+                stack.append(token)
         
         return float(stack[0])
     
     def eval_having(group, cond):
         final_bool = True
         
-        [expr1, op, expr2] = get_col_op_value(cond)
+        [expr1, op, expr2] = get_expr_value(cond)
         match op:
             case "!=":
                 final_bool = eval_expr(group, expr1) != eval_expr(group, expr2)
@@ -547,7 +433,7 @@ def main():
                     if evaluateConditions(row, predlistforgroupingvariable, eval_predicate):
                         # the aggregate functions from that grouping variable
                         aggrfuncs = vectorOfAggregateFunctions[key]
-
+                        
                         for index in range(len(aggrfuncs)):
                             function, attribute = aggrfunctioncompute(aggrfuncs[index])
                             # min, max, avg, sum, count
@@ -565,52 +451,32 @@ def main():
                                 denom += 1
                                 avg = num/denom
                                 mfstructdict[groupingattributekey][key][index] = [num, denom, avg]
+                    
 
-    print(mfstructdict)
-    
-    """
-
-    # Note: The f allows formatting with variables.
-    #       Also, note the indentation is preserved.
-    tmp = f"""
-import os
-import psycopg2
-import psycopg2.extras
-import tabulate
-from dotenv import load_dotenv
-
-# DO NOT EDIT THIS FILE, IT IS GENERATED BY generator.py
-
-def query():
-    load_dotenv()
-
-    user = os.getenv('USER')
-    password = os.getenv('PASSWORD')
-    dbname = os.getenv('DBNAME')
-
-    conn = psycopg2.connect("dbname="+dbname+" user="+user+" password="+password,
-                            cursor_factory=psycopg2.extras.DictCursor)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM sales")
-    
-    _global = []
-    {body}
-    
-    return tabulate.tabulate(_global,
-                        headers="keys", tablefmt="psql")
-
-def main():
-    print(query())
-    
+    #HAVING CLAUSE
+    if havingClause != "":
+        for key in vectorOfAggregateFunctions:
+              for groupingattributekey in list(mfstructdict.keys()):
+                  if not evaluateConditions(groupingattributekey, havingClause, eval_having):
+                      del mfstructdict[groupingattributekey]
+                      
+    # for grouping_key, aggrfuncmap in mfstructdict.items():
+    #     row = {attr: aggrfuncmap[attr] for attr in groupingattributes}
+        
+    #     for gv_key, func_values in aggrfuncmap.items():
+    #         if gv_key in groupingattributes:
+    #             continue  # already added
+    #         flat_values = []
+    #         for val in func_values:
+    #             if isinstance(val, list) and len(val) == 3:  # avg: [sum, count, avg]
+    #                 flat_values.append(val[2])  # use the average
+    #             else:
+    #                 flat_values.append(val)
+    #         row[gv_key] = flat_values
+    #     _global.append(row)
+        
 if "__main__" == __name__:
     main()
-    """
 
-    # Write the generated code to a file
-    open("_generated.py", "w").write(tmp)
-    # Execute the generated code
-    subprocess.run(["python", "_generated.py"])
-
-
-if "__main__" == __name__:
-    main()
+    
+    

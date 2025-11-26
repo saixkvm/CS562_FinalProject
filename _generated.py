@@ -21,7 +21,6 @@ def query():
     
     _global = []
     
-
     def input_processing():
         with open("input.txt", "r") as f:
             data = f.read()
@@ -128,7 +127,9 @@ def query():
 
 
         # HAVING CLAUSE
-        havingClause = parts[6].split('\n')[1]
+        havingClause = None
+        if parts[6].strip() != "":
+            havingClause = parts[6].split('\n')[1]
 
         # print(select_attributes)
         # print(numberOfGroupingVariables)
@@ -142,6 +143,12 @@ def query():
     def aggrfunctioncompute(s):
         return s.split("_")
 
+    def get_aggr_idx(gV, aggr_func):
+        for idx, aggr in enumerate(vectorOfAggregateFunctions[gV]):
+            if aggr == aggr_func:
+                return idx
+            
+    
     def get_col_op_value(cond):
         res = cond.split('.')
         tmp = res[1]
@@ -161,37 +168,168 @@ def query():
             val = val.strip("'")
 
         return [col, op, val]
+    
+    
+    def tokenize_expr(group, expr):
+        precedence = {"+": 1, "-": 1, "*": 2, "/": 2}
+        output_stack = []
+        operator_stack = []
+        
+        c = 0
+        last_token = None
+        while c < len(expr):
+            
+            #Handles -3, -(3+4), (-3 + 4),  -1_sum_quant
+            if expr[c] == "-" and (c == 0 or (last_token in "+-/*(")):
+                output_stack.append("-1")
+                operator_stack.append("*")
+                c += 1
+            
+            if expr[c] == " ":
+                c += 1
+                continue
+            
+            #Parentheses
+            elif expr[c] == "(":
+                operator_stack.append(expr[c])
+                last_token = "("
+            
+            elif expr[c] == ")":
+                while operator_stack and operator_stack[-1] != "(":
+                    output_stack.append(operator_stack.pop())
+                operator_stack.pop()
+                last_token = ")"
+            
+            #Operator
+            elif expr[c] in "+-/*":
+                while operator_stack and operator_stack[-1] in precedence and precedence[operator_stack[-1]] >= precedence[expr[c]]:
+                    output_stack.append(operator_stack.pop())
+                operator_stack.append(expr[c])
+                last_token = expr[c]
+                
+            else:
+                #Number or variable
+                tmp = ""
+                
+                while c < len(expr) and expr[c] not in " +-/*()":
+                    tmp += expr[c]
+                    c += 1
+                
+                if not "_" in tmp: #Its a number
+                    output_stack.append(tmp)
+                
+                else: #Its a variable
+                    group_variable, aggr_func = tmp.split("_",1)
+                    idx = get_aggr_idx(group_variable, aggr_func)
+                    num = str(mfstructdict[group][group_variable][idx])
+                    output_stack.append(num)
+                
+                last_token = tmp
+                continue
+        
+            c += 1
+        
+        while operator_stack:
+            output_stack.append(operator_stack.pop())
+        
+        return output_stack
+    
+    def eval_expr(expr):
+        #Reverse Polish Notation
+        #Shoutout Leetcode 150
+        tokens = tokenize_expr(expr)
+        stack = []
+        
+        for token in tokens:
+            if token in "+-/*":
+                b = float(stack.pop())
+                a = float(stack.pop())
+                
+                if token == '+':
+                    stack.append(a + b)
+                elif token == '-':
+                    stack.append(a - b)
+                elif token == '*':
+                    stack.append(a * b)
+                elif token == '/':
+                    stack.append(a / b)
+                else:
+                    stack.append(token)
+        
+        return float(stack[0])
+    
+    def eval_having(group, cond):
+        final_bool = True
+        
+        [expr1, op, expr2] = get_col_op_value(cond)
+        match op:
+            case "!=":
+                final_bool = eval_expr(group, expr1) != eval_expr(group, expr2)
+            case ">=":
+                final_bool = eval_expr(group, expr1) >= eval_expr(group, expr2)
+            case "<=":
+                final_bool = eval_expr(group, expr1) <= eval_expr(group, expr2)
+            case ">":
+                final_bool = eval_expr(group, expr1) > eval_expr(group, expr2)
+            case "<":
+                final_bool = eval_expr(group, expr1) < eval_expr(group, expr2)
+            case "=":
+                final_bool = eval_expr(group, expr1) == eval_expr(group, expr2)
+            case _:
+                print(f"Unknonw op: {op}")
+        
+        
+        return final_bool
+    
+    def eval_predicate(row, cond):
+        final_bool = True
+        
+        [col, op, val] = get_col_op_value(cond)
+        match op:
+            case "!=":
+                final_bool = row[col] != val
+            case ">=":
+                final_bool = row[col] >= val
+            case "<=":
+                final_bool = row[col] <= val
+            case ">":
+                final_bool = row[col] > val
+            case "<":
+                final_bool = row[col] < val
+            case "=":
+                final_bool = row[col] == val
+            case _:
+                print(f"Unknown op: {op}")
+        
+        return final_bool
 
-    def evalandcond(row, cond):
+    
+    def eval_not_cond(row, cond, fn):
+        not_flag = False
+
+        
+        if cond.upper().strip().startswith("NOT "):
+            not_flag = True
+            cond = cond.strip()[4:].strip()
+        
+        result = fn(row,cond)
+        return not result if not_flag else result
+
+    def evalandcond(row, cond, fn):
         evalconds = cond.split(' AND ')
         finalbool = True 
 
         for cond in evalconds:
-            [col, op, val] = get_col_op_value(cond)
-            match op:
-                case "!=":
-                    finalbool = finalbool and row[col] != val
-                case ">=":
-                    finalbool = finalbool and row[col] >= val
-                case "<=":
-                    finalbool = finalbool and row[col] <= val
-                case ">":
-                    finalbool = finalbool and row[col] > val
-                case "<":
-                    finalbool = finalbool and row[col] < val
-                case "=":
-                    finalbool = finalbool and row[col] == val
-                case _:
-                    print(f"Unknown command: {tmpoperator}")
+            finalbool = finalbool and eval_not_cond(row, cond, fn)
         return finalbool
 
-    def evaluateConditions(row, predlistforgroupingvariable):
+    def evaluateConditions(row, predlistforgroupingvariable, fn):
         # split by OR'S
         evalconds = predlistforgroupingvariable.split(' OR ')
         finalbool = False
         for cond in evalconds:
             # cond can contain ANDS now
-            finalbool = finalbool or evalandcond(row, cond)
+            finalbool = finalbool or evalandcond(row, cond, fn)
         return finalbool
     
     select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause = input_processing()
@@ -245,9 +383,11 @@ def query():
             #UPDATE THE MFSTRUCTDICT
             #update the grouping variables aggr funcs
             for groupingattributekey in mfstructdict:
+                
                 rowchecktuple = tuple(row[attr] for attr in groupingattributes)
+                
                 if rowchecktuple == groupingattributekey:
-                    if evaluateConditions(row, predlistforgroupingvariable):
+                    if evaluateConditions(row, predlistforgroupingvariable, eval_predicate):
                         # the aggregate functions from that grouping variable
                         aggrfuncs = vectorOfAggregateFunctions[key]
 
@@ -269,23 +409,8 @@ def query():
                                 avg = num/denom
                                 mfstructdict[groupingattributekey][key][index] = [num, denom, avg]
 
-    for grouping_key, aggrfuncmap in mfstructdict.items():
-        row = {attr: aggrfuncmap[attr] for attr in groupingattributes}
-        
-        for gv_key, func_values in aggrfuncmap.items():
-            if gv_key in groupingattributes:
-                continue  # already added
-            flat_values = []
-            for val in func_values:
-                if isinstance(val, list) and len(val) == 3:  # avg: [sum, count, avg]
-                    flat_values.append(val[2])  # use the average
-                else:
-                    flat_values.append(val)
-            row[gv_key] = flat_values
-        _global.append(row)
-
+    print(mfstructdict)
     
-
     
     
     return tabulate.tabulate(_global,
