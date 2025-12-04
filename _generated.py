@@ -128,8 +128,8 @@ def query():
 
         # HAVING CLAUSE
         # In case there are aggregates in the having clause but not in the vectorOfAggregateFunctions
-        havingClause = None
-        if parts[6].strip() != "" or parts[6].strip().upper() != "NONE":
+        havingClause = ""
+        if parts[6].strip() != "" and parts[6].strip().upper() != "NONE":
             havingClause = parts[6].split('\n')[1]
 
             c = 0
