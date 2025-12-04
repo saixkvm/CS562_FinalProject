@@ -129,8 +129,8 @@ def query():
 
         # HAVING CLAUSE
         # In case there are aggregates in the having clause but not in the vectorOfAggregateFunctions
-        havingClause = None
-        if parts[6].strip() != "" or parts[6].strip().upper() != "NONE":
+        havingClause = ""
+        if parts[6].strip() != "" and parts[6].strip().upper() != "NONE":
             havingClause = parts[6].split('\n')[1]
 
             c = 0
@@ -460,6 +460,7 @@ def query():
               for groupingattributekey in list(mfstructdict.keys()):
                   if not evaluateConditions(groupingattributekey, havingClause, eval_having):
                       del mfstructdict[groupingattributekey]
+                      
                       
                       
     for grouping_key, aggrfuncmap in mfstructdict.items():
