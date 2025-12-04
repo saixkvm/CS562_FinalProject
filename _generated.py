@@ -21,6 +21,7 @@ def query():
     
     _global = []
     
+    
     def input_processing():
         with open("input.txt", "r") as f:
             data = f.read()
@@ -127,13 +128,9 @@ def query():
 
 
         # HAVING CLAUSE
-<<<<<<< HEAD
-        havingClause = parts[6].split('\n')[1]
-=======
         havingClause = None
         if parts[6].strip() != "":
             havingClause = parts[6].split('\n')[1]
->>>>>>> a7469ad457b7fc222787b51e40266f839eaa12bc
 
         # print(select_attributes)
         # print(numberOfGroupingVariables)
@@ -147,15 +144,11 @@ def query():
     def aggrfunctioncompute(s):
         return s.split("_")
 
-<<<<<<< HEAD
-=======
     def get_aggr_idx(gV, aggr_func):
         for idx, aggr in enumerate(vectorOfAggregateFunctions[gV]):
             if aggr == aggr_func:
                 return idx
-            
-    
->>>>>>> a7469ad457b7fc222787b51e40266f839eaa12bc
+              
     def get_col_op_value(cond):
         res = cond.split('.')
         tmp = res[1]
@@ -175,11 +168,6 @@ def query():
             val = val.strip("'")
 
         return [col, op, val]
-<<<<<<< HEAD
-
-    def evalandcond(row, cond):
-=======
-    
     
     def tokenize_expr(group, expr):
         precedence = {"+": 1, "-": 1, "*": 2, "/": 2}
@@ -314,7 +302,6 @@ def query():
         
         return final_bool
 
-    
     def eval_not_cond(row, cond, fn):
         not_flag = False
 
@@ -327,47 +314,20 @@ def query():
         return not result if not_flag else result
 
     def evalandcond(row, cond, fn):
->>>>>>> a7469ad457b7fc222787b51e40266f839eaa12bc
         evalconds = cond.split(' AND ')
         finalbool = True 
 
         for cond in evalconds:
-<<<<<<< HEAD
-            [col, op, val] = get_col_op_value(cond)
-            match op:
-                case "!=":
-                    finalbool = finalbool and row[col] != val
-                case ">=":
-                    finalbool = finalbool and row[col] >= val
-                case "<=":
-                    finalbool = finalbool and row[col] <= val
-                case ">":
-                    finalbool = finalbool and row[col] > val
-                case "<":
-                    finalbool = finalbool and row[col] < val
-                case "=":
-                    finalbool = finalbool and row[col] == val
-                case _:
-                    print(f"Unknown command: {tmpoperator}")
-        return finalbool
-
-    def evaluateConditions(row, predlistforgroupingvariable):
-=======
             finalbool = finalbool and eval_not_cond(row, cond, fn)
         return finalbool
 
     def evaluateConditions(row, predlistforgroupingvariable, fn):
->>>>>>> a7469ad457b7fc222787b51e40266f839eaa12bc
         # split by OR'S
         evalconds = predlistforgroupingvariable.split(' OR ')
         finalbool = False
         for cond in evalconds:
             # cond can contain ANDS now
-<<<<<<< HEAD
-            finalbool = finalbool or evalandcond(row, cond)
-=======
             finalbool = finalbool or evalandcond(row, cond, fn)
->>>>>>> a7469ad457b7fc222787b51e40266f839eaa12bc
         return finalbool
     
     select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause = input_processing()
@@ -413,6 +373,7 @@ def query():
                     
             mfstructdict[groupingattributekey] = aggrfuncmap
 
+    # Loop
     for key in vectorOfAggregateFunctions:
         # the predicate list for that grouping variable
         predlistforgroupingvariable = predicatehashmap[key] 
@@ -421,17 +382,11 @@ def query():
             #UPDATE THE MFSTRUCTDICT
             #update the grouping variables aggr funcs
             for groupingattributekey in mfstructdict:
-<<<<<<< HEAD
-                rowchecktuple = tuple(row[attr] for attr in groupingattributes)
-                if rowchecktuple == groupingattributekey:
-                    if evaluateConditions(row, predlistforgroupingvariable):
-=======
                 
                 rowchecktuple = tuple(row[attr] for attr in groupingattributes)
                 
                 if rowchecktuple == groupingattributekey:
                     if evaluateConditions(row, predlistforgroupingvariable, eval_predicate):
->>>>>>> a7469ad457b7fc222787b51e40266f839eaa12bc
                         # the aggregate functions from that grouping variable
                         aggrfuncs = vectorOfAggregateFunctions[key]
 
@@ -452,8 +407,13 @@ def query():
                                 denom += 1
                                 avg = num/denom
                                 mfstructdict[groupingattributekey][key][index] = [num, denom, avg]
-
-<<<<<<< HEAD
+    #HAVING CLAUSE
+    if havingClause != "":
+        for key in vectorOfAggregateFunctions:
+              for groupingattributekey in list(mfstructdict.keys()):
+                  if not evaluateConditions(groupingattributekey, havingClause, eval_having):
+                      del mfstructdict[groupingattributekey]
+        
     for grouping_key, aggrfuncmap in mfstructdict.items():
         row = {attr: aggrfuncmap[attr] for attr in groupingattributes}
         
@@ -468,12 +428,7 @@ def query():
                     flat_values.append(val)
             row[gv_key] = flat_values
         _global.append(row)
-
     
-
-=======
-    
->>>>>>> a7469ad457b7fc222787b51e40266f839eaa12bc
     
     
     return tabulate.tabulate(_global,

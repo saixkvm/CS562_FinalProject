@@ -176,8 +176,9 @@ def main():
     file (e.g. _generated.py) and then run.
     """
 
-    
     body = """
+    """
+    
     def input_processing():
         with open("input.txt", "r") as f:
             data = f.read()
@@ -304,8 +305,7 @@ def main():
         for idx, aggr in enumerate(vectorOfAggregateFunctions[gV]):
             if aggr == aggr_func:
                 return idx
-            
-    
+              
     def get_col_op_value(cond):
         res = cond.split('.')
         tmp = res[1]
@@ -530,6 +530,7 @@ def main():
                     
             mfstructdict[groupingattributekey] = aggrfuncmap
 
+    # Loop
     for key in vectorOfAggregateFunctions:
         # the predicate list for that grouping variable
         predlistforgroupingvariable = predicatehashmap[key] 
@@ -563,10 +564,28 @@ def main():
                                 denom += 1
                                 avg = num/denom
                                 mfstructdict[groupingattributekey][key][index] = [num, denom, avg]
-
-    print(mfstructdict)
+    #HAVING CLAUSE
+    if havingClause != "":
+        for key in vectorOfAggregateFunctions:
+              for groupingattributekey in list(mfstructdict.keys()):
+                  if not evaluateConditions(groupingattributekey, havingClause, eval_having):
+                      del mfstructdict[groupingattributekey]
+        
+    for grouping_key, aggrfuncmap in mfstructdict.items():
+        row = {attr: aggrfuncmap[attr] for attr in groupingattributes}
+        
+        for gv_key, func_values in aggrfuncmap.items():
+            if gv_key in groupingattributes:
+                continue  # already added
+            flat_values = []
+            for val in func_values:
+                if isinstance(val, list) and len(val) == 3:  # avg: [sum, count, avg]
+                    flat_values.append(val[2])  # use the average
+                else:
+                    flat_values.append(val)
+            row[gv_key] = flat_values
+        _global.append(row)
     
-    """
 
     # Note: The f allows formatting with variables.
     #       Also, note the indentation is preserved.
