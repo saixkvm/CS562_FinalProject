@@ -173,11 +173,7 @@ def main():
     This is the generator code. It should take in the MF structure and generate the code
     needed to run the query. That generated code should be saved to a 
     file (e.g. _generated.py) and then run.
-    """
-
-
-        
-        
+    """ 
     def input_processing():
         with open("input.txt", "r") as f:
             data = f.read()
@@ -323,7 +319,6 @@ def main():
 
         return [col, op, val]
     
-    
     def tokenize_expr(group, expr):
         precedence = {"+": 1, "-": 1, "*": 2, "/": 2}
         output_stack = []
@@ -457,7 +452,6 @@ def main():
         
         return final_bool
 
-    
     def eval_not_cond(row, cond, fn):
         not_flag = False
 
