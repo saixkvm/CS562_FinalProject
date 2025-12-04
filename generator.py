@@ -178,7 +178,6 @@ def main():
 
     body = """
     """
-    
     def input_processing():
         with open("input.txt", "r") as f:
             data = f.read()
@@ -634,7 +633,7 @@ def main():
                     row[attr] = mfstructdict[grouping_key][gV][idx]
         _global.append(row)
     
-    """
+    # """
 
     # Note: The f allows formatting with variables.
     #       Also, note the indentation is preserved.
