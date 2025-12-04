@@ -26,7 +26,7 @@ def query():
             data = f.read()
 
         parts = data.split(":")
-
+        
         # SELECT ATTRIBUTES LIST
         select_attributes = parts[1].split('\n')
         select_attributes.pop(0)
@@ -41,7 +41,7 @@ def query():
 
         # GROUPING VARIABLES LIST
         groupingvariables = parts[3].split('\n')[1]
-        groupingattributes = list(map(lambda x: x.strip(),groupingvariables.split(',')))
+        groupingattributes = set(map(lambda x: x.strip(),groupingvariables.split(',')))
 
         # VECTOR OF AGGREGATE FUNCTIONS
         vectorOfAggregateFunctions = parts[4].split('\n')[1]
@@ -127,9 +127,27 @@ def query():
 
 
         # HAVING CLAUSE
+        # In case there are aggregates in the having clause but not in the vectorOfAggregateFunctions
         havingClause = None
-        if parts[6].strip() != "":
+        if parts[6].strip() != "" or parts[6].strip().upper() != "NONE":
             havingClause = parts[6].split('\n')[1]
+
+            c = 0
+            while c < len(havingClause):
+                if havingClause[c] in " =*><!()/+-":
+                    c += 1
+                    continue
+            
+                tmp = ""        
+                while c < len(havingClause) and havingClause[c] not in " =*><!()/+-":
+                    tmp += havingClause[c]
+                    c += 1
+            
+                if "_" in tmp:
+                    group_variable, agg_func = tmp.split("_",1)
+                    if agg_func not in vectorOfAggregateFunctions[group_variable]:
+                        vectorOfAggregateFunctions[group_variable].append(agg_func)
+
 
         # print(select_attributes)
         # print(numberOfGroupingVariables)
@@ -143,11 +161,16 @@ def query():
     def aggrfunctioncompute(s):
         return s.split("_")
 
-    def get_aggr_idx(gV, aggr_func):
-        for idx, aggr in enumerate(vectorOfAggregateFunctions[gV]):
-            if aggr == aggr_func:
+    def get_agg_idx(gV, agg_func):
+        for idx, agg in enumerate(vectorOfAggregateFunctions[gV]):
+            if agg == agg_func:
                 return idx
             
+            
+    # def has_grouping_variables(group, gVs):
+    #     for gv in gVs
+    #     return True
+    
     
     def get_col_op_value(cond):
         res = cond.split('.')
@@ -157,7 +180,7 @@ def query():
             if op in tmp:
                 operator = op
                 break 
-        tmp = tmp.split(op)
+        tmp = tmp.split(operator)
         col = tmp[0]
         val = tmp[1]
 
@@ -167,7 +190,25 @@ def query():
         if isinstance(val, str):
             val = val.strip("'")
 
-        return [col, op, val]
+        return [col, operator, val]
+
+    def get_expr_value(cond):
+        operator = ''
+        for op in ["!=", ">=", "<=", ">", "<", "="]:
+            if op in cond:
+                operator = op
+                break 
+        tmp = cond.split(operator)
+        expr1 = tmp[0]
+        expr2 = tmp[1]
+
+        if isinstance(expr1, str):
+            expr1 = expr1.strip("'")
+
+        if isinstance(expr2, str):
+            expr2 = expr2.strip("'")
+            
+        return [expr1, operator, expr2]
     
     
     def tokenize_expr(group, expr):
@@ -219,10 +260,12 @@ def query():
                     output_stack.append(tmp)
                 
                 else: #Its a variable
-                    group_variable, aggr_func = tmp.split("_",1)
-                    idx = get_aggr_idx(group_variable, aggr_func)
-                    num = str(mfstructdict[group][group_variable][idx])
-                    output_stack.append(num)
+                    group_variable, agg_func = tmp.split("_",1)
+                    idx = get_agg_idx(group_variable, agg_func)
+                    num = mfstructdict[group][group_variable][idx]
+                    if isinstance(num, list): #AVG
+                        num = num[2]
+                    output_stack.append(str(num))
                 
                 last_token = tmp
                 continue
@@ -234,10 +277,10 @@ def query():
         
         return output_stack
     
-    def eval_expr(expr):
+    def eval_expr(group, expr):
         #Reverse Polish Notation
         #Shoutout Leetcode 150
-        tokens = tokenize_expr(expr)
+        tokens = tokenize_expr(group, expr)
         stack = []
         
         for token in tokens:
@@ -253,15 +296,15 @@ def query():
                     stack.append(a * b)
                 elif token == '/':
                     stack.append(a / b)
-                else:
-                    stack.append(token)
+            else:
+                stack.append(token)
         
         return float(stack[0])
     
     def eval_having(group, cond):
         final_bool = True
         
-        [expr1, op, expr2] = get_col_op_value(cond)
+        [expr1, op, expr2] = get_expr_value(cond)
         match op:
             case "!=":
                 final_bool = eval_expr(group, expr1) != eval_expr(group, expr2)
@@ -390,7 +433,7 @@ def query():
                     if evaluateConditions(row, predlistforgroupingvariable, eval_predicate):
                         # the aggregate functions from that grouping variable
                         aggrfuncs = vectorOfAggregateFunctions[key]
-
+                        
                         for index in range(len(aggrfuncs)):
                             function, attribute = aggrfunctioncompute(aggrfuncs[index])
                             # min, max, avg, sum, count
@@ -408,7 +451,30 @@ def query():
                                 denom += 1
                                 avg = num/denom
                                 mfstructdict[groupingattributekey][key][index] = [num, denom, avg]
+                    
 
+    #HAVING CLAUSE
+    if havingClause != "":
+        for key in vectorOfAggregateFunctions:
+              for groupingattributekey in list(mfstructdict.keys()):
+                  if not evaluateConditions(groupingattributekey, havingClause, eval_having):
+                      del mfstructdict[groupingattributekey]
+                      
+                      
+    for grouping_key, aggrfuncmap in mfstructdict.items():
+        row = {}
+        
+        for attr in select_attributes:
+            if attr in groupingattributes:
+                row[attr] = aggrfuncmap[attr]
+            else:
+                gV, agg = attr.split("_",1)
+                idx = get_agg_idx(gV, agg)
+                if isinstance(mfstructdict[grouping_key][gV][idx], list): #AVG
+                    row[attr] = mfstructdict[grouping_key][gV][idx][2]
+                else:
+                    row[attr] = mfstructdict[grouping_key][gV][idx]
+        _global.append(row)
     
     
     
