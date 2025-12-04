@@ -384,7 +384,11 @@ def query():
             attr_1: attr_1 value
             ...
             attr_n : attr_n value
-            grouping variable -> [list of aggr funcs respective to that gv]
+            1_sum_quant: 0,
+            1_avg_quant: [0,0,0],    [Total Sum, Count, Avg]
+            1_min_quant: 0,
+            1_max_quant: 0,
+            1_count_quant: 0
         }
     '''
     # THIS PASS IS FOR CREATING THE MF STRUCT
