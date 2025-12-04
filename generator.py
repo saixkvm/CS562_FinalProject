@@ -156,7 +156,8 @@ def evalandcond(row, cond):
             case "=":
                 finalbool = finalbool and row[col] == val
             case _:
-                print(f"Unknown command: {tmpoperator}")
+                print(f"Unknown command: {op}")
+
     return finalbool
 
 def evaluateConditions(row, predlistforgroupingvariable):
@@ -173,7 +174,10 @@ def main():
     This is the generator code. It should take in the MF structure and generate the code
     needed to run the query. That generated code should be saved to a 
     file (e.g. _generated.py) and then run.
-    """ 
+    """
+
+    
+    body = """
     def input_processing():
         with open("input.txt", "r") as f:
             data = f.read()
@@ -280,7 +284,9 @@ def main():
 
 
         # HAVING CLAUSE
-        havingClause = parts[6].split('\\n')[1]
+        havingClause = None
+        if parts[6].strip() != "":
+            havingClause = parts[6].split('\\n')[1]
 
         # print(select_attributes)
         # print(numberOfGroupingVariables)
@@ -299,6 +305,7 @@ def main():
             if aggr == aggr_func:
                 return idx
             
+    
     def get_col_op_value(cond):
         res = cond.split('.')
         tmp = res[1]
@@ -557,27 +564,8 @@ def main():
                                 avg = num/denom
                                 mfstructdict[groupingattributekey][key][index] = [num, denom, avg]
 
-
-    #HAVING CLAUSE
-    if havingClause != "":
-        
-    for grouping_key, aggrfuncmap in mfstructdict.items():
-        row = {attr: aggrfuncmap[attr] for attr in groupingattributes}
-        
-        for gv_key, func_values in aggrfuncmap.items():
-            if gv_key in groupingattributes:
-                continue  # already added
-            flat_values = []
-            for val in func_values:
-                if isinstance(val, list) and len(val) == 3:  # avg: [sum, count, avg]
-                    flat_values.append(val[2])  # use the average
-                else:
-                    flat_values.append(val)
-            row[gv_key] = flat_values
-        _global.append(row)
-
+    print(mfstructdict)
     
-    body = """
     """
 
     # Note: The f allows formatting with variables.
