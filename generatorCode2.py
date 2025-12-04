@@ -261,9 +261,7 @@ def query():
                     output_stack.append(tmp)
                 
                 else: #Its a variable
-                    group_variable, agg_func = tmp.split("_",1)
-                    idx = get_agg_idx(group_variable, agg_func)
-                    num = mfstructdict[group][group_variable][idx]
+                    num = mfstructdict[group][tmp]
                     if isinstance(num, list): #AVG
                         num = num[2]
                     output_stack.append(str(num))
@@ -424,11 +422,13 @@ def query():
                     
             mfstructdict[groupingattributekey] = aggrfuncmap
 
-    for key in vectorOfAggregateFunctions:
+    cur.execute("SELECT * FROM sales")
+    for row in cur:  
+        for gV in vectorOfAggregateFunctions:
         # the predicate list for that grouping variable
-        predlistforgroupingvariable = predicatehashmap[key]
-        cur.execute("SELECT * FROM sales")
-        for row in cur:  
+            predlistforgroupingvariable = predicatehashmap[gV]
+        
+        
             #UPDATE THE MFSTRUCTDICT
             #update the grouping variables aggr funcs
             for groupingattributekey in mfstructdict:
@@ -438,26 +438,26 @@ def query():
                 if rowchecktuple == groupingattributekey:
                     if evaluateConditions(row, predlistforgroupingvariable, eval_predicate):
                         # the aggregate functions from that grouping variable
-                        aggrfuncs = vectorOfAggregateFunctions[key]
-                        for index in range(len(aggrfuncs)):
-                            function, attribute = aggrfunctioncompute(aggrfuncs[index])
+                        aggrfuncs = vectorOfAggregateFunctions[gV]
+                        for aggr in aggrfuncs:
+                            key = gV + "_" + aggr
+                            function, attribute = aggr.split("_")
                             # min, max, avg, sum, count
                             if function == "count":
-                                mfstructdict[groupingattributekey][key][index] +=1
+                                mfstructdict[groupingattributekey][key] +=1
                             elif function == "sum":
-                                mfstructdict[groupingattributekey][key][index] += row[attribute]
+                                mfstructdict[groupingattributekey][key] += row[attribute]
                             elif function == "min":
-                                mfstructdict[groupingattributekey][key][index] = min(mfstructdict[groupingattributekey][key][index], row[attribute])
+                                mfstructdict[groupingattributekey][key] = min(mfstructdict[groupingattributekey][key], row[attribute])
                             elif function == "max":
-                                mfstructdict[groupingattributekey][key][index] = max(mfstructdict[groupingattributekey][key][index], row[attribute])
+                                mfstructdict[groupingattributekey][key] = max(mfstructdict[groupingattributekey][key], row[attribute])
                             else:
-                                num, denom, avg = mfstructdict[groupingattributekey][key][index]
+                                num, denom, avg = mfstructdict[groupingattributekey][key]
                                 num += row[attribute]
                                 denom += 1
                                 avg = num/denom
-                                mfstructdict[groupingattributekey][key][index] = [num, denom, avg]
+                                mfstructdict[groupingattributekey][key] = [num, denom, avg]
                     
-
     #HAVING CLAUSE
     if havingClause != "":
         for key in vectorOfAggregateFunctions:
@@ -474,14 +474,11 @@ def query():
             if attr in groupingattributes:
                 row[attr] = aggrfuncmap[attr]
             else:
-                
-                gV, agg = attr.split("_",1)
-                idx = get_agg_idx(gV, agg)
-                if isinstance(mfstructdict[grouping_key][gV][idx], list): #AVG
-                    row[attr] = mfstructdict[grouping_key][gV][idx][2]
+                if isinstance(mfstructdict[grouping_key][attr], list): #AVG
+                    row[attr] = mfstructdict[grouping_key][attr][2]
                 else:
                     
-                    row[attr] = mfstructdict[grouping_key][gV][idx]
+                    row[attr] = mfstructdict[grouping_key][attr]
         _global.append(row)
     
     return tabulate.tabulate(_global,
