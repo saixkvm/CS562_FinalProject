@@ -150,12 +150,12 @@ def query():
                         vectorOfAggregateFunctions[group_variable].append(agg_func)
 
 
-        # print(select_attributes)
-        # print(numberOfGroupingVariables)
-        # print(groupingattributes)
-        # print(vectorOfAggregateFunctions)
-        # print(predicatehashmap)
-        # print(havingClause)
+        print(select_attributes)
+        print(numberOfGroupingVariables)
+        print(groupingattributes)
+        print(vectorOfAggregateFunctions)
+        print(predicatehashmap)
+        print(havingClause)
 
         return [select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause]
 
@@ -182,15 +182,15 @@ def query():
                 operator = op
                 break 
         tmp = tmp.split(operator)
-        col = tmp[0]
-        val = tmp[1]
+        col = tmp[0].strip()
+        val = tmp[1].strip()
 
+        
         if val.isdigit():
             val = int(val)
 
         if isinstance(val, str):
             val = val.strip("'")
-
         return [col, operator, val]
 
     def get_expr_value(cond):
@@ -327,8 +327,8 @@ def query():
     
     def eval_predicate(row, cond):
         final_bool = True
-        
         [col, op, val] = get_col_op_value(cond)
+        
         match op:
             case "!=":
                 final_bool = row[col] != val
@@ -421,9 +421,9 @@ def query():
 
     for key in vectorOfAggregateFunctions:
         # the predicate list for that grouping variable
-        predlistforgroupingvariable = predicatehashmap[key] 
+        predlistforgroupingvariable = predicatehashmap[key]
         cur.execute("SELECT * FROM sales")
-        for row in cur:      
+        for row in cur:  
             #UPDATE THE MFSTRUCTDICT
             #update the grouping variables aggr funcs
             for groupingattributekey in mfstructdict:
@@ -434,7 +434,6 @@ def query():
                     if evaluateConditions(row, predlistforgroupingvariable, eval_predicate):
                         # the aggregate functions from that grouping variable
                         aggrfuncs = vectorOfAggregateFunctions[key]
-                        
                         for index in range(len(aggrfuncs)):
                             function, attribute = aggrfunctioncompute(aggrfuncs[index])
                             # min, max, avg, sum, count
@@ -470,11 +469,13 @@ def query():
             if attr in groupingattributes:
                 row[attr] = aggrfuncmap[attr]
             else:
+                
                 gV, agg = attr.split("_",1)
                 idx = get_agg_idx(gV, agg)
                 if isinstance(mfstructdict[grouping_key][gV][idx], list): #AVG
                     row[attr] = mfstructdict[grouping_key][gV][idx][2]
                 else:
+                    
                     row[attr] = mfstructdict[grouping_key][gV][idx]
         _global.append(row)
     
