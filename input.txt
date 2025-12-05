@@ -5,9 +5,10 @@ NUMBER OF GROUPING VARIABLES(n):
 GROUPING ATTRIBUTES(V):
 cust, prod
 F-VECT([F]):
-1_min_quant, 3_avg_quant, 2_min_quant, 3_sum_quant, 2_sum_quant, 1_sum_quant
+1_min_quant, 3_avg_quant, 2_min_quant, 3_sum_quant, 2_sum_quant, 1_sum_quant, 2_avg_quant
 SELECT CONDITION-VECT([σ]):
-2.state='NJ'
-1.state='NJ' 
+2.state='NJ' 
+1.state='NJ' AND 1.quant > 100
 3.state='CT'
 HAVING_CONDITION(G):
+1_sum_quant > 2 * 2_sum_quant or 1_avg_quant > 3_avg_quant
