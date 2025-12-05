@@ -1,0 +1,5 @@
+Select attributes   {'2_sum_quant', 'cust', '1_sum_quant', '3_sum_quant'}
+Number              3
+Grouping attributes ['cust', 'prod']
+vector of agg funcs {'1': ['min_quant', 'sum_quant'], '3': ['avg_quant', 'sum_quant'], '2': ['min_quant', 'sum_quant']}
+pred hashmap {'2': "2.state='NJ'", '1': "1.state='NJ' ", '3': "3.state='CT'"}
