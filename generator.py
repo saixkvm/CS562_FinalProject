@@ -17,7 +17,7 @@ def main():
         parts = data.split(":")
         
         # SELECT ATTRIBUTES LIST
-        select_attributes = parts[1].split('\n')
+        select_attributes = parts[1].split('\\n')
         select_attributes.pop(0)
         select_attributes.pop(len(select_attributes)-1)
         select_attributes = select_attributes[0].split(',')
@@ -25,15 +25,15 @@ def main():
             select_attributes[i] = select_attributes[i].strip()
 
         # NUMBER OF GROUPING VARIABLES
-        numberOfGroupingVariables = parts[2].split('\n')[1]
+        numberOfGroupingVariables = parts[2].split('\\n')[1]
         # print(numberOfGroupingVariables)
 
         # GROUPING VARIABLES LIST
-        groupingvariables = parts[3].split('\n')[1]
+        groupingvariables = parts[3].split('\\n')[1]
         groupingattributes = set(map(lambda x: x.strip(),groupingvariables.split(',')))
 
         # VECTOR OF AGGREGATE FUNCTIONS
-        vectorOfAggregateFunctions = parts[4].split('\n')[1]
+        vectorOfAggregateFunctions = parts[4].split('\\n')[1]
         vectorOfAggregateFunctions = vectorOfAggregateFunctions.split(',')
         for i in range(len(vectorOfAggregateFunctions)):
             vectorOfAggregateFunctions[i] = vectorOfAggregateFunctions[i].strip()
@@ -51,7 +51,7 @@ def main():
         vectorOfAggregateFunctions = hset
 
         # PREDICATE LIST
-        predicateList = parts[5].split('\n')
+        predicateList = parts[5].split('\\n')
         predicateList.pop(0)
         predicateList.pop(len(predicateList)-1)
 
@@ -66,7 +66,7 @@ def main():
         # In case there are aggregates in the having clause but not in the vectorOfAggregateFunctions
         havingClause = ""
         if parts[6].strip() != "" and parts[6].strip().upper() != "NONE":
-            havingClause = parts[6].split('\n')[1]
+            havingClause = parts[6].split('\\n')[1]
 
             c = 0
             while c < len(havingClause):
@@ -83,14 +83,6 @@ def main():
                     group_variable, agg_func = tmp.split("_",1)
                     if agg_func not in vectorOfAggregateFunctions[group_variable]:
                         vectorOfAggregateFunctions[group_variable].append(agg_func)
-
-
-        print(select_attributes)
-        print(numberOfGroupingVariables)
-        print(groupingattributes)
-        print(vectorOfAggregateFunctions)
-        print(predicatehashmap)
-        print(havingClause)
 
         return [select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause]
 
