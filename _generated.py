@@ -32,12 +32,10 @@ def query():
             mfstruct[current_group][attr] = row[attr]
         mfstruct[current_group]['1_min_quant'] = float('inf')
         mfstruct[current_group]['1_sum_quant'] = 0
-        mfstruct[current_group]['1_avg_quant'] = [0,0,0]
         mfstruct[current_group]['3_avg_quant'] = [0,0,0]
         mfstruct[current_group]['3_sum_quant'] = 0
         mfstruct[current_group]['2_min_quant'] = float('inf')
         mfstruct[current_group]['2_sum_quant'] = 0
-        mfstruct[current_group]['2_avg_quant'] = [0,0,0]
 
     
 
@@ -48,22 +46,12 @@ def query():
             rowchecktuple = tuple(row[attr] for attr in group)
             
             if rowchecktuple == groupingattributekey:
-                if row['state']=='NJ' :
+                if row['state']=='NY':
                     mfstruct[groupingattributekey]['2_min_quant'] = min(mfstruct[groupingattributekey]['2_min_quant'], row['quant'])
                     mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
-                    num, denom, avg = mfstruct[groupingattributekey]['2_avg_quant']
-                    num += row['quant']
-                    denom += 1
-                    avg = num/denom
-                    mfstruct[groupingattributekey]['2_avg_quant'] = [num, denom, avg]
-                if row['state']=='NJ' and row['quant'] > 100:
+                if row['state']=='NJ' :
                     mfstruct[groupingattributekey]['1_min_quant'] = min(mfstruct[groupingattributekey]['1_min_quant'], row['quant'])
                     mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
-                    num, denom, avg = mfstruct[groupingattributekey]['1_avg_quant']
-                    num += row['quant']
-                    denom += 1
-                    avg = num/denom
-                    mfstruct[groupingattributekey]['1_avg_quant'] = [num, denom, avg]
                 if row['state']=='CT':
                     num, denom, avg = mfstruct[groupingattributekey]['3_avg_quant']
                     num += row['quant']
@@ -76,13 +64,23 @@ def query():
 
 
     #Having clause
-    for groupingattributekey in mfstruct:
-        if not (mfstruct['groupingattributekey']['1_sum_quant'] > 2 * mfstruct['groupingattributekey']['2_sum_quant'] or mfstruct['groupingattributekey']['1_avg_quant'] > mfstruct['groupingattributekey']['3_avg_quant']):
-            del mfstruct[groupingattributekey]
+
+
+
+    #Projection
+    for groupingattributekey, aggrfuncmap in mfstruct.items():
+        row = dict()
+        
+        row['cust'] = aggrfuncmap['cust']
+        row['prod'] = aggrfuncmap['prod']
+        row['1_sum_quant'] = aggrfuncmap['1_sum_quant']
+        row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
+        row['3_sum_quant'] = aggrfuncmap['3_sum_quant']
+
+        _global.append(row)
     
     
-    print(mfstruct)
-    return 1
+    
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 

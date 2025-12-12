@@ -78,12 +78,12 @@ def input_processing():
                         vectorOfAggregateFunctions[group_variable].append(agg_func)
 
 
-        print(select_attributes)
-        print(numberOfGroupingVariables)
-        print(groupingattributes)
-        print(vectorOfAggregateFunctions)
-        print(predicatehashmap)
-        print(havingClause)
+        # print(select_attributes)
+        # print(numberOfGroupingVariables)
+        # print(groupingattributes)
+        # print(vectorOfAggregateFunctions)
+        # print(predicatehashmap)
+        # print(havingClause)
 
         return [select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause]
 
@@ -143,9 +143,9 @@ def create_having(havingClause):
         havingClause = re.sub(r"\bOR\b", "or", havingClause)
         havingClause = re.sub(r"\bNOT\b", "not", havingClause) 
         havingClause = re.sub(r"(?<![<>!])=", "==", havingClause)
-        havingClause = re.sub(r"(\w+_(?:sum|avg|min|max)_\w+)", r"mfstruct['groupingattributekey']['\1']", havingClause)
+        havingClause = re.sub(r"(\w+_(?:sum|avg|min|max)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
         
-        res += "    for groupingattributekey in mfstruct:\n"
+        res += "    for groupingattributekey in list(mfstruct):\n"
         res += f"        if not ({havingClause}):\n"
         res += "            del mfstruct[groupingattributekey]"
     return res
@@ -155,8 +155,10 @@ def create_projection(select_attributes, groupingattributes):
     res = ""
     
     for attr in select_attributes:
-        if attr in groupingattributes:
-            res += f"row['{attr}'] = aggrfuncmap['{attr}']"
+        if "_avg_" in attr:
+            res += f"        row['{attr}'] = aggrfuncmap['{attr}'][2]\n"
+        else:
+            res += f"        row['{attr}'] = aggrfuncmap['{attr}']\n"
     return res
 
 def main():
@@ -200,6 +202,7 @@ def main():
         row = dict()
         
 {create_projection(select_attributes, groupingattributes)}
+        _global.append(row)
     """
 
     # Note: The f allows formatting with variables.
@@ -228,8 +231,7 @@ def query():
     _global = []
     {body}
     
-    print(mfstruct)
-    return 1
+    
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 
@@ -239,11 +241,10 @@ def main():
 if "__main__" == __name__:
     main()
     """
-    print(tmp)
     # Write the generated code to a file
     open("_generated.py", "w").write(tmp)
     # Execute the generated code
-    # subprocess.run(["python", "_generated.py"])
+    subprocess.run(["python", "_generated.py"])
 
 
 if "__main__" == __name__:
