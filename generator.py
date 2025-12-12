@@ -143,7 +143,7 @@ def create_having(havingClause):
         havingClause = re.sub(r"\bOR\b", "or", havingClause)
         havingClause = re.sub(r"\bNOT\b", "not", havingClause) 
         havingClause = re.sub(r"(?<![<>!])=", "==", havingClause)
-        havingClause = re.sub(r"(\w+_(?:sum|avg|min)_\w+)", r"mfstruct['groupingattributekey']['\1']", havingClause)
+        havingClause = re.sub(r"(\w+_(?:sum|avg|min|max)_\w+)", r"mfstruct['groupingattributekey']['\1']", havingClause)
         
         res += "    for groupingattributekey in mfstruct:\n"
         res += f"        if not ({havingClause}):\n"
