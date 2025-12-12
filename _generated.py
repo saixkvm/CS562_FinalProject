@@ -36,29 +36,39 @@ def query():
         mfstruct[current_group]['3_sum_quant'] = 0
         mfstruct[current_group]['2_min_quant'] = float('inf')
         mfstruct[current_group]['2_sum_quant'] = 0
+        mfstruct[current_group]['4_sum_quant'] = 0
 
     
 
     #Predicates
+    #We do 1==1 if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
+        rowchecktuple = tuple(row[attr] for attr in group)
+        
         for groupingattributekey in mfstruct:
-            rowchecktuple = tuple(row[attr] for attr in group)
             
             if rowchecktuple == groupingattributekey:
-                if row['state']=='NY':
-                    mfstruct[groupingattributekey]['2_min_quant'] = min(mfstruct[groupingattributekey]['2_min_quant'], row['quant'])
-                    mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
-                if row['state']=='NJ' :
-                    mfstruct[groupingattributekey]['1_min_quant'] = min(mfstruct[groupingattributekey]['1_min_quant'], row['quant'])
-                    mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
-                if row['state']=='CT':
-                    num, denom, avg = mfstruct[groupingattributekey]['3_avg_quant']
-                    num += row['quant']
-                    denom += 1
-                    avg = num/denom
-                    mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
-                    mfstruct[groupingattributekey]['3_sum_quant'] += row['quant']
+               #Grouping variable 1
+               if row['state']=='NJ' :
+                   
+                   mfstruct[groupingattributekey]['1_min_quant'] = min(mfstruct[groupingattributekey]['1_min_quant'], row['quant'])
+                   mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
+               #Grouping variable 3
+               if row['state']=='CT':
+                   num, denom, avg = mfstruct[groupingattributekey]['3_avg_quant']
+                   num += row['quant']
+                   denom += 1
+                   avg = num/denom
+                   mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
+                   mfstruct[groupingattributekey]['3_sum_quant'] += row['quant']
+               #Grouping variable 2
+               if row['state']=='NY':
+                   mfstruct[groupingattributekey]['2_min_quant'] = min(mfstruct[groupingattributekey]['2_min_quant'], row['quant'])
+                   mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
+               #Grouping variable 4
+               if 1==1:
+                   mfstruct[groupingattributekey]['4_sum_quant'] += row['quant']
     
 
 
@@ -76,6 +86,7 @@ def query():
         row['1_sum_quant'] = aggrfuncmap['1_sum_quant']
         row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
         row['3_sum_quant'] = aggrfuncmap['3_sum_quant']
+        row['4_sum_quant'] = aggrfuncmap['4_sum_quant']
 
         _global.append(row)
     

@@ -78,12 +78,12 @@ def input_processing():
                         vectorOfAggregateFunctions[group_variable].append(agg_func)
 
 
-        # print(select_attributes)
-        # print(numberOfGroupingVariables)
-        # print(groupingattributes)
-        # print(vectorOfAggregateFunctions)
-        # print(predicatehashmap)
-        # print(havingClause)
+        print(select_attributes)
+        print(numberOfGroupingVariables)
+        print(groupingattributes)
+        print(vectorOfAggregateFunctions)
+        print(predicatehashmap)
+        print(havingClause)
 
         return [select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause]
 
@@ -106,32 +106,65 @@ def create_gV_keys(vectorOfAggregateFunctions):
 
 def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
     res = ""
-    for gV, pred in predicatehashmap.items():
-        pred = re.sub(r"\bAND\b", "and", pred)
-        pred = re.sub(r"\bOR\b", "or", pred)
-        pred = re.sub(r"\bNOT\b", "not", pred)
-        pred = re.sub(r"(?<![<>!])=", "==", pred)
-        pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
+#     for gV, pred in predicatehashmap.items():
+#         pred = re.sub(r"\bAND\b", "and", pred)
+#         pred = re.sub(r"\bOR\b", "or", pred)
+#         pred = re.sub(r"\bNOT\b", "not", pred)
+#         pred = re.sub(r"(?<![<>!])=", "==", pred)
+#         pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
         
-        res += f"                if {pred}:\n"
+#         res += f"                #Grouping variable {gV}\n"
+#         res += f"                if {pred}:\n"
         
-        for aggr in vectorOfAggregateFunctions[gV]:
+#         for aggr in vectorOfAggregateFunctions[gV]:
+#             func, attribute = aggr.split("_")
+#             full_func = gV + "_" + aggr
+#             if func == "min":
+#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+#             elif func == "max":
+#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+#             elif func == "sum":
+#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
+#             elif func == "count":
+#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] += 1\n"
+#             else:
+#                 res += f"                    num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
+#                 res += f"                    num += row['{attribute}']\n"
+#                 res += f"                    denom += 1\n"
+#                 res += f"                    avg = num/denom\n"
+#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
+    
+    for gV, aggrs in vectorOfAggregateFunctions.items():
+        res += f"               #Grouping variable {gV}\n"
+
+        if gV in predicatehashmap:
+            
+            pred = predicatehashmap[gV]
+            pred = re.sub(r"\bAND\b", "and", pred)
+            pred = re.sub(r"\bOR\b", "or", pred)
+            pred = re.sub(r"\bNOT\b", "not", pred)
+            pred = re.sub(r"(?<![<>!])=", "==", pred)
+            pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
+            res += f"               if {pred}:\n"
+        else:
+            res += f"               if 1==1:\n"
+        for aggr in aggrs:
             func, attribute = aggr.split("_")
             full_func = gV + "_" + aggr
             if func == "min":
-                res += f"                    mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+                res += f"                   mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
             elif func == "max":
-                res += f"                    mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+                res += f"                   mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
             elif func == "sum":
-                res += f"                    mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
+                res += f"                   mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
             elif func == "count":
-                res += f"                    mfstruct[groupingattributekey]['{full_func}'] += 1\n"
+                res += f"                   mfstruct[groupingattributekey]['{full_func}'] += 1\n"
             else:
-                res += f"                    num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
-                res += f"                    num += row['{attribute}']\n"
-                res += f"                    denom += 1\n"
-                res += f"                    avg = num/denom\n"
-                res += f"                    mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
+                res += f"                   num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
+                res += f"                   num += row['{attribute}']\n"
+                res += f"                   denom += 1\n"
+                res += f"                   avg = num/denom\n"
+                res += f"                   mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
     
     return res
 
@@ -183,10 +216,12 @@ def main():
     
 
     #Predicates
+    #We do 1==1 if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
+        rowchecktuple = tuple(row[attr] for attr in group)
+        
         for groupingattributekey in mfstruct:
-            rowchecktuple = tuple(row[attr] for attr in group)
             
             if rowchecktuple == groupingattributekey:
 {create_predicates(predicatehashmap, vectorOfAggregateFunctions)}    
