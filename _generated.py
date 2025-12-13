@@ -21,9 +21,14 @@ def query():
     
     _global = []
     
+    column_names = [desc[0] for desc in cur.description]
+    
     mfstruct = {}
     group = ('month', 'prod')
     
+    for column in group:
+        if column not in column_names:
+            raise ValueError("Unknown Column")
     #Creating the mfstruct
     for row in cur:
         current_group = tuple([row[attr] for attr in group])
@@ -42,6 +47,7 @@ def query():
     for row in cur:
         rowchecktuple = tuple(row[attr] for attr in group)
         for groupingattributekey in mfstruct:
+            try:
                #Grouping variable 1
                if row['state'] == 'NJ' and mfstruct[groupingattributekey]['month'] == row['month']:
                    num, denom, avg = mfstruct[groupingattributekey]['1_avg_quant']
@@ -59,7 +65,9 @@ def query():
                    denom += 1
                    avg = num/denom
                    mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
-    
+ 
+            except KeyError:
+                raise ValueError("A grouping variable has an unknown column")
 
 
 

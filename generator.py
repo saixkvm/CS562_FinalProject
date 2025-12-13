@@ -15,7 +15,7 @@ def input_processing():
             select_attributes[i] = select_attributes[i].strip()
 
         # NUMBER OF GROUPING VARIABLES
-        numberOfGroupingVariables = parts[2].split('\n')[1]
+        numberOfGroupingVariables = int(parts[2].split('\n')[1])
         # print(numberOfGroupingVariables)
 
         # GROUPING VARIABLES LIST
@@ -85,6 +85,9 @@ def input_processing():
         print(predicatehashmap)
         print(havingClause)
 
+        if numberOfGroupingVariables != len(vectorOfAggregateFunctions.keys()) and numberOfGroupingVariables != len(predicatehashmap.keys()):
+            raise ValueError("Number of grouping variables doesn't match the number of grouping variables for the aggregate functions or predicates")
+        
         return [select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause]
 
 
@@ -94,52 +97,20 @@ def create_gV_keys(vectorOfAggregateFunctions):
         for aggr in vectorOfAggregateFunctions[gV]:
             func = aggr.split("_")[0]
             full_func = gV + "_" + aggr
-            if func == "min":
-                res += f"        mfstruct[current_group]['{full_func}'] = float('inf')\n"
-            elif func == "max":
-                res += f"        mfstruct[current_group]['{full_func}'] = float('-inf')\n"
-            elif func == "avg":
-                res += f"        mfstruct[current_group]['{full_func}'] = [0,0,0]\n"
-            else:
-                res += f"        mfstruct[current_group]['{full_func}'] = 0\n"
+            match func:
+                case "min":
+                    res += f"        mfstruct[current_group]['{full_func}'] = float('inf')\n"
+                case "max":
+                    res += f"        mfstruct[current_group]['{full_func}'] = float('-inf')\n"
+                case  "avg":
+                    res += f"        mfstruct[current_group]['{full_func}'] = [0,0,0]\n"
+                case "count" | "sum":
+                    res += f"        mfstruct[current_group]['{full_func}'] = 0\n"
+                case _:
+                    raise ValueError("Unknown aggregate function")
     return res
 
-# def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
-#     res = ""
-#     for gV, aggrs in vectorOfAggregateFunctions.items():
-#         res += f"               #Grouping variable {gV}\n"
 
-#         if gV in predicatehashmap:
-            
-#             pred = predicatehashmap[gV]
-#             pred = re.sub(r"\bAND\b", "and", pred)
-#             pred = re.sub(r"\bOR\b", "or", pred)
-#             pred = re.sub(r"\bNOT\b", "not", pred)
-#             pred = re.sub(r"(?<![<>!])=", "==", pred)
-#             pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
-#             pred = pred.strip()
-#             res += f"               if {pred}:\n"
-#         else:
-#             res += f"               if 1==1:\n"
-#         for aggr in aggrs:
-#             func, attribute = aggr.split("_")
-#             full_func = gV + "_" + aggr
-#             if func == "min":
-#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
-#             elif func == "max":
-#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
-#             elif func == "sum":
-#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
-#             elif func == "count":
-#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] += 1\n"
-#             else:
-#                 res += f"                   num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
-#                 res += f"                   num += row['{attribute}']\n"
-#                 res += f"                   denom += 1\n"
-#                 res += f"                   avg = num/denom\n"
-#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
-    
-#     return res
 def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
     res = ""
     for gV, aggrs in vectorOfAggregateFunctions.items():
@@ -209,9 +180,12 @@ def create_having(havingClause):
         havingClause = re.sub(r"(?<![<>!])=", "==", havingClause)
         havingClause = re.sub(r"(\w+_(?:sum|avg|min|max)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
         
-        res += "    for groupingattributekey in list(mfstruct):\n"
-        res += f"        if not ({havingClause}):\n"
-        res += "            del mfstruct[groupingattributekey]"
+        res += "    try:\n"
+        res += "        for groupingattributekey in list(mfstruct):\n"
+        res += f"            if not ({havingClause}):\n"
+        res += "                del mfstruct[groupingattributekey]\n"
+        res += "    except KeyError:\n"
+        res += "        raise ValueError('The having clause references an unknown attribute')"
     return res
 
 
@@ -234,9 +208,14 @@ def main():
     select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause = input_processing()
     
     body = f"""
+    column_names = [desc[0] for desc in cur.description]
+    
     mfstruct = {{}}
     group = {tuple([gA for gA in groupingattributes])}
     
+    for column in group:
+        if column not in column_names:
+            raise ValueError("Unknown Column")
     #Creating the mfstruct
     for row in cur:
         current_group = tuple([row[attr] for attr in group])
@@ -252,7 +231,10 @@ def main():
     for row in cur:
         rowchecktuple = tuple(row[attr] for attr in group)
         for groupingattributekey in mfstruct:
-{create_predicates(predicatehashmap, vectorOfAggregateFunctions)}    
+            try:
+{create_predicates(predicatehashmap, vectorOfAggregateFunctions)} 
+            except KeyError:
+                raise ValueError("A grouping variable has an unknown column")
 
 
 
@@ -309,7 +291,7 @@ if "__main__" == __name__:
     # Write the generated code to a file
     open("_generated.py", "w").write(tmp)
     # Execute the generated code
-    subprocess.run(["python", "_generated.py"])
+    # subprocess.run(["python", "_generated.py"])
 
 
 if "__main__" == __name__:
