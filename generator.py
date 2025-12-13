@@ -1,7 +1,7 @@
 import subprocess
 import re
 def input_processing():
-        with open("input.txt", "r") as f:
+        with open("input2.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -104,36 +104,44 @@ def create_gV_keys(vectorOfAggregateFunctions):
                 res += f"        mfstruct[current_group]['{full_func}'] = 0\n"
     return res
 
-def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
-    res = ""
-#     for gV, pred in predicatehashmap.items():
-#         pred = re.sub(r"\bAND\b", "and", pred)
-#         pred = re.sub(r"\bOR\b", "or", pred)
-#         pred = re.sub(r"\bNOT\b", "not", pred)
-#         pred = re.sub(r"(?<![<>!])=", "==", pred)
-#         pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
-        
-#         res += f"                #Grouping variable {gV}\n"
-#         res += f"                if {pred}:\n"
-        
-#         for aggr in vectorOfAggregateFunctions[gV]:
+# def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
+#     res = ""
+#     for gV, aggrs in vectorOfAggregateFunctions.items():
+#         res += f"               #Grouping variable {gV}\n"
+
+#         if gV in predicatehashmap:
+            
+#             pred = predicatehashmap[gV]
+#             pred = re.sub(r"\bAND\b", "and", pred)
+#             pred = re.sub(r"\bOR\b", "or", pred)
+#             pred = re.sub(r"\bNOT\b", "not", pred)
+#             pred = re.sub(r"(?<![<>!])=", "==", pred)
+#             pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
+#             pred = pred.strip()
+#             res += f"               if {pred}:\n"
+#         else:
+#             res += f"               if 1==1:\n"
+#         for aggr in aggrs:
 #             func, attribute = aggr.split("_")
 #             full_func = gV + "_" + aggr
 #             if func == "min":
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
 #             elif func == "max":
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
 #             elif func == "sum":
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
+#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
 #             elif func == "count":
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] += 1\n"
+#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] += 1\n"
 #             else:
-#                 res += f"                    num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
-#                 res += f"                    num += row['{attribute}']\n"
-#                 res += f"                    denom += 1\n"
-#                 res += f"                    avg = num/denom\n"
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
+#                 res += f"                   num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
+#                 res += f"                   num += row['{attribute}']\n"
+#                 res += f"                   denom += 1\n"
+#                 res += f"                   avg = num/denom\n"
+#                 res += f"                   mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
     
+#     return res
+def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
+    res = ""
     for gV, aggrs in vectorOfAggregateFunctions.items():
         res += f"               #Grouping variable {gV}\n"
 
@@ -144,10 +152,33 @@ def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
             pred = re.sub(r"\bOR\b", "or", pred)
             pred = re.sub(r"\bNOT\b", "not", pred)
             pred = re.sub(r"(?<![<>!])=", "==", pred)
-            pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
-            res += f"               if {pred}:\n"
+            pred = pred.strip()
+            
+            
+            condition_matches = re.findall(r"\d+\.(\w+)\s*([<>!=]+)\s*(?:'([^']*)'|(\w+))", pred)
+            
+            emf = False
+            
+            for condition in condition_matches:
+                val1 = condition[0]
+                op = condition[1]
+                val2 = condition[2]
+                val3 = condition[3]
+                
+                if val3 is None:
+                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val2}", f"row['{val1}'] {op} {val2}", pred)
+                elif val1 == val3:
+                    emf = True
+                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"mfstruct[groupingattributekey]['{val1}'] {op} row['{val3}']",pred)
+                else:
+                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"row['{val1}'] {op} {val3}", pred) 
+            
+            if emf:
+                res += f"               if {pred}:\n"
+            else:
+                res += f"               if rowchecktuple == groupingattributekey and ({pred}):\n"
         else:
-            res += f"               if 1==1:\n"
+            res += f"                   if rowchecktuple == groupingattributekey:\n"
         for aggr in aggrs:
             func, attribute = aggr.split("_")
             full_func = gV + "_" + aggr
@@ -216,14 +247,11 @@ def main():
     
 
     #Predicates
-    #We do 1==1 if the grouping variable doesn't have a predicate
+    #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
         rowchecktuple = tuple(row[attr] for attr in group)
-        
         for groupingattributekey in mfstruct:
-            
-            if rowchecktuple == groupingattributekey:
 {create_predicates(predicatehashmap, vectorOfAggregateFunctions)}    
 
 
@@ -266,7 +294,9 @@ def query():
     _global = []
     {body}
     
-    
+    # print(mfstruct)
+    # return 1
+    # print(mfstruct[(11,'Grapes')])
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 
