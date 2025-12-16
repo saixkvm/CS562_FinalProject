@@ -2,7 +2,7 @@ import subprocess
 import re
 def input_processing():
     
-        with open("input3.txt", "r") as f:
+        with open("input.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -81,7 +81,7 @@ def input_processing():
         all_keys = vector_keys | predicate_keys
         
         for attr in select_attributes:
-            if "+" in attr or "-" in attr or "*" in attr or "/" in attr:
+            if "+" in attr or "-" in attr or "*" in attr or "/" in attr or "_" in attr:
                 continue
             if not attr in groupingattributes and not attr in all_keys:
                 raise ValueError(f"attr {attr} must appear in the grouping attributes list or be used in an aggregate function")
@@ -150,7 +150,7 @@ def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
             else:
                 res += f"               if rowchecktuple == groupingattributekey and ({pred}):\n"
         else:
-            res += f"                   if rowchecktuple == groupingattributekey:\n"
+            res += f"               if rowchecktuple == groupingattributekey:\n"
         for aggr in aggrs:
             func, attribute = aggr.split("_")
             full_func = gV + "_" + aggr
