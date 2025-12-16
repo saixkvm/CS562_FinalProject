@@ -10,3 +10,4 @@ SELECT CONDITION-VECT([σ]):
 1.prod = prod AND 1.month = month AND 1.year = year
 2.prod = prod AND 2.year = year
 HAVING_CONDITION(G):
+1_sum_quant > 2_sum_quant
