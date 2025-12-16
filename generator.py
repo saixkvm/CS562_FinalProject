@@ -1,6 +1,7 @@
 import subprocess
 import re
 def input_processing():
+    
         with open("input3.txt", "r") as f:
             data = f.read()
 
@@ -61,21 +62,11 @@ def input_processing():
         if parts[6].strip() != "" and parts[6].strip().upper() != "NONE":
             havingClause = parts[6].split('\n')[1]
 
-            c = 0
-            while c < len(havingClause):
-                if havingClause[c] in " =*><!()/+-":
-                    c += 1
-                    continue
-            
-                tmp = ""        
-                while c < len(havingClause) and havingClause[c] not in " =*><!()/+-":
-                    tmp += havingClause[c]
-                    c += 1
-            
-                if "_" in tmp:
-                    group_variable, agg_func = tmp.split("_",1)
-                    if agg_func not in vectorOfAggregateFunctions[group_variable]:
-                        vectorOfAggregateFunctions[group_variable].append(agg_func)
+            aggrs = re.findall(r"(\w+_(?:sum|avg|min|max|count)_\w+)", havingClause)
+            for aggr in aggrs:
+                group_variable, aggr_func = aggr.split("_",1)
+                if aggr_func not in vectorOfAggregateFunctions[group_variable]:
+                    vectorOfAggregateFunctions[group_variable].append(aggr_func)
 
 
         print(select_attributes)
@@ -90,6 +81,8 @@ def input_processing():
         all_keys = vector_keys | predicate_keys
         
         for attr in select_attributes:
+            if "+" in attr or "-" in attr or "*" in attr or "/" in attr:
+                continue
             if not attr in groupingattributes and not attr in all_keys:
                 raise ValueError(f"attr {attr} must appear in the grouping attributes list or be used in an aggregate function")
             
@@ -186,7 +179,7 @@ def create_having(havingClause):
         havingClause = re.sub(r"\bOR\b", "or", havingClause)
         havingClause = re.sub(r"\bNOT\b", "not", havingClause) 
         havingClause = re.sub(r"(?<![<>!])=", "==", havingClause)
-        havingClause = re.sub(r"(\w+_(?:sum|avg|min|max)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
+        havingClause = re.sub(r"(\w+_(?:sum|avg|min|max|count)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
         
         res += "    try:\n"
         res += "        for groupingattributekey in list(mfstruct):\n"
@@ -205,7 +198,7 @@ def create_projection(select_attributes, groupingattributes):
             res += f"        row['{attr}'] = aggrfuncmap['{attr}']\n"
         else:
             tmp = attr
-            attr = re.sub(r"(\w+_(?:sum|min|max)_\w+)", r"aggrfuncmap['\1']", attr)
+            attr = re.sub(r"(\w+_(?:sum|min|max|count)_\w+)", r"aggrfuncmap['\1']", attr)
             attr = re.sub(r"(\w+_(?:avg)_\w+)", r"aggrfuncmap['\1'][2]", attr)
             res += f"        row['{tmp}'] = {attr}\n"
     return res
@@ -217,7 +210,6 @@ def main():
     file (e.g. _generated.py) and then run.
     """
     select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause = input_processing()
-    
     body = f"""
     column_names = [desc[0] for desc in cur.description]
     
