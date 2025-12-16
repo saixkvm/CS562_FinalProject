@@ -62,7 +62,7 @@ def input_processing():
         if parts[6].strip() != "" and parts[6].strip().upper() != "NONE":
             havingClause = parts[6].split('\n')[1]
 
-            aggrs = re.findall(r"(\w+_(?:sum|avg|min|max)_\w+)", havingClause)
+            aggrs = re.findall(r"(\w+_(?:sum|avg|min|max|count)_\w+)", havingClause)
             for aggr in aggrs:
                 group_variable, aggr_func = aggr.split("_",1)
                 if aggr_func not in vectorOfAggregateFunctions[group_variable]:
@@ -179,7 +179,7 @@ def create_having(havingClause):
         havingClause = re.sub(r"\bOR\b", "or", havingClause)
         havingClause = re.sub(r"\bNOT\b", "not", havingClause) 
         havingClause = re.sub(r"(?<![<>!])=", "==", havingClause)
-        havingClause = re.sub(r"(\w+_(?:sum|avg|min|max)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
+        havingClause = re.sub(r"(\w+_(?:sum|avg|min|max|count)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
         
         res += "    try:\n"
         res += "        for groupingattributekey in list(mfstruct):\n"
@@ -198,7 +198,7 @@ def create_projection(select_attributes, groupingattributes):
             res += f"        row['{attr}'] = aggrfuncmap['{attr}']\n"
         else:
             tmp = attr
-            attr = re.sub(r"(\w+_(?:sum|min|max)_\w+)", r"aggrfuncmap['\1']", attr)
+            attr = re.sub(r"(\w+_(?:sum|min|max|count)_\w+)", r"aggrfuncmap['\1']", attr)
             attr = re.sub(r"(\w+_(?:avg)_\w+)", r"aggrfuncmap['\1'][2]", attr)
             res += f"        row['{tmp}'] = {attr}\n"
     return res
