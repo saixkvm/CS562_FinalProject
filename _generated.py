@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('month', 'prod')
+    group = ('prod', 'month', 'year')
     
     for column in group:
         if column not in column_names:
@@ -36,8 +36,7 @@ def query():
         for attr in group:
             mfstruct[current_group][attr] = row[attr]
         mfstruct[current_group]['1_avg_quant'] = [0,0,0]
-        mfstruct[current_group]['2_sum_quant'] = 0
-        mfstruct[current_group]['3_avg_quant'] = [0,0,0]
+        mfstruct[current_group]['2_avg_quant'] = [0,0,0]
 
     
 
@@ -49,22 +48,19 @@ def query():
         for groupingattributekey in mfstruct:
             try:
                #Grouping variable 1
-               if row['state'] == 'NJ' and mfstruct[groupingattributekey]['month'] == row['month']:
+               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['month'] == row['month'] and mfstruct[groupingattributekey]['year'] == row['year']:
                    num, denom, avg = mfstruct[groupingattributekey]['1_avg_quant']
                    num += row['quant']
                    denom += 1
                    avg = num/denom
                    mfstruct[groupingattributekey]['1_avg_quant'] = [num, denom, avg]
                #Grouping variable 2
-               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['month'] >= row['month']:
-                   mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
-               #Grouping variable 3
-               if rowchecktuple == groupingattributekey and (row['state'] == 'CT'):
-                   num, denom, avg = mfstruct[groupingattributekey]['3_avg_quant']
+               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['year'] == row['year']:
+                   num, denom, avg = mfstruct[groupingattributekey]['2_avg_quant']
                    num += row['quant']
                    denom += 1
                    avg = num/denom
-                   mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
+                   mfstruct[groupingattributekey]['2_avg_quant'] = [num, denom, avg]
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -81,9 +77,8 @@ def query():
         
         row['prod'] = aggrfuncmap['prod']
         row['month'] = aggrfuncmap['month']
-        row['1_avg_quant'] = aggrfuncmap['1_avg_quant'][2]
-        row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
-        row['3_avg_quant'] = aggrfuncmap['3_avg_quant'][2]
+        row['year'] = aggrfuncmap['year']
+        row['1_avg_quant / 2_avg_quant'] = aggrfuncmap['1_avg_quant'][2] / aggrfuncmap['2_avg_quant'][2]
 
         _global.append(row)
     

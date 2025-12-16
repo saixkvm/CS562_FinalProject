@@ -1,7 +1,7 @@
 import subprocess
 import re
 def input_processing():
-        with open("input2.txt", "r") as f:
+        with open("input3.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -193,10 +193,13 @@ def create_projection(select_attributes, groupingattributes):
     res = ""
     
     for attr in select_attributes:
-        if "_avg_" in attr:
-            res += f"        row['{attr}'] = aggrfuncmap['{attr}'][2]\n"
-        else:
+        if attr in groupingattributes:
             res += f"        row['{attr}'] = aggrfuncmap['{attr}']\n"
+        else:
+            tmp = attr
+            attr = re.sub(r"(\w+_(?:sum|min|max)_\w+)", r"aggrfuncmap['\1']", attr)
+            attr = re.sub(r"(\w+_(?:avg)_\w+)", r"aggrfuncmap['\1'][2]", attr)
+            res += f"        row['{tmp}'] = {attr}\n"
     return res
 
 def main():
@@ -291,7 +294,7 @@ if "__main__" == __name__:
     # Write the generated code to a file
     open("_generated.py", "w").write(tmp)
     # Execute the generated code
-    # subprocess.run(["python", "_generated.py"])
+    subprocess.run(["python", "_generated.py"])
 
 
 if "__main__" == __name__:
