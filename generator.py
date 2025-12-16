@@ -2,7 +2,7 @@ import subprocess
 import re
 def input_processing():
     
-        with open("input.txt", "r") as f:
+        with open("input3.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -154,20 +154,23 @@ def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
         for aggr in aggrs:
             func, attribute = aggr.split("_")
             full_func = gV + "_" + aggr
-            if func == "min":
-                res += f"                   mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
-            elif func == "max":
-                res += f"                   mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
-            elif func == "sum":
-                res += f"                   mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
-            elif func == "count":
-                res += f"                   mfstruct[groupingattributekey]['{full_func}'] += 1\n"
-            else:
-                res += f"                   num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
-                res += f"                   num += row['{attribute}']\n"
-                res += f"                   denom += 1\n"
-                res += f"                   avg = num/denom\n"
-                res += f"                   mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
+            match func:
+                case "min":
+                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+                case "max":
+                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+                case "sum":
+                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
+                case "count":
+                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] += 1\n"
+                case "avg":
+                    res += f"                   num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
+                    res += f"                   num += row['{attribute}']\n"
+                    res += f"                   denom += 1\n"
+                    res += f"                   avg = num/denom\n"
+                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
+                case _:
+                    raise ValueError("Unknown aggregate function")
     
     return res
 

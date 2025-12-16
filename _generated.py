@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('prod', 'cust')
+    group = ('prod', 'month', 'year')
     
     for column in group:
         if column not in column_names:
@@ -35,13 +35,10 @@ def query():
         mfstruct[current_group] = dict()
         for attr in group:
             mfstruct[current_group][attr] = row[attr]
-        mfstruct[current_group]['1_min_quant'] = float('inf')
+        mfstruct[current_group]['1_avg_quant'] = [0,0,0]
         mfstruct[current_group]['1_sum_quant'] = 0
-        mfstruct[current_group]['3_avg_quant'] = [0,0,0]
-        mfstruct[current_group]['3_sum_quant'] = 0
-        mfstruct[current_group]['2_min_quant'] = float('inf')
+        mfstruct[current_group]['2_avg_quant'] = [0,0,0]
         mfstruct[current_group]['2_sum_quant'] = 0
-        mfstruct[current_group]['4_sum_quant'] = 0
 
     
 
@@ -53,24 +50,21 @@ def query():
         for groupingattributekey in mfstruct:
             try:
                #Grouping variable 1
-               if rowchecktuple == groupingattributekey and (row['state'] == 'NJ'):
-                   mfstruct[groupingattributekey]['1_min_quant'] = min(mfstruct[groupingattributekey]['1_min_quant'], row['quant'])
-                   mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
-               #Grouping variable 3
-               if rowchecktuple == groupingattributekey and (row['state'] == 'CT'):
-                   num, denom, avg = mfstruct[groupingattributekey]['3_avg_quant']
+               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['month'] == row['month'] and mfstruct[groupingattributekey]['year'] == row['year']:
+                   num, denom, avg = mfstruct[groupingattributekey]['1_avg_quant']
                    num += row['quant']
                    denom += 1
                    avg = num/denom
-                   mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
-                   mfstruct[groupingattributekey]['3_sum_quant'] += row['quant']
+                   mfstruct[groupingattributekey]['1_avg_quant'] = [num, denom, avg]
+                   mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
                #Grouping variable 2
-               if rowchecktuple == groupingattributekey and (row['state'] == 'NY'):
-                   mfstruct[groupingattributekey]['2_min_quant'] = min(mfstruct[groupingattributekey]['2_min_quant'], row['quant'])
+               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['year'] == row['year']:
+                   num, denom, avg = mfstruct[groupingattributekey]['2_avg_quant']
+                   num += row['quant']
+                   denom += 1
+                   avg = num/denom
+                   mfstruct[groupingattributekey]['2_avg_quant'] = [num, denom, avg]
                    mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
-               #Grouping variable 4
-               if rowchecktuple == groupingattributekey:
-                   mfstruct[groupingattributekey]['4_sum_quant'] += row['quant']
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -78,19 +72,23 @@ def query():
 
 
     #Having clause
-
+    try:
+        for groupingattributekey in list(mfstruct):
+            if not (mfstruct[groupingattributekey]['1_sum_quant'] > mfstruct[groupingattributekey]['2_sum_quant']):
+                del mfstruct[groupingattributekey]
+    except KeyError:
+        raise ValueError('The having clause references an unknown attribute')
 
 
     #Projection
     for groupingattributekey, aggrfuncmap in mfstruct.items():
         row = dict()
         
-        row['cust'] = aggrfuncmap['cust']
         row['prod'] = aggrfuncmap['prod']
-        row['1_sum_quant'] = aggrfuncmap['1_sum_quant']
-        row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
-        row['3_sum_quant'] = aggrfuncmap['3_sum_quant']
-        row['4_sum_quant'] = aggrfuncmap['4_sum_quant']
+        row['month'] = aggrfuncmap['month']
+        row['year'] = aggrfuncmap['year']
+        row['1_avg_quant / 2_avg_quant'] = aggrfuncmap['1_avg_quant'][2] / aggrfuncmap['2_avg_quant'][2]
+        row['1_count_quant'] = aggrfuncmap['1_count_quant']
 
         _global.append(row)
     
