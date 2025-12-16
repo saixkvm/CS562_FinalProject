@@ -1,6 +1,7 @@
 import subprocess
 import re
 def input_processing():
+    
         with open("input3.txt", "r") as f:
             data = f.read()
 
@@ -209,7 +210,6 @@ def main():
     file (e.g. _generated.py) and then run.
     """
     select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause = input_processing()
-    return 1
     body = f"""
     column_names = [desc[0] for desc in cur.description]
     
@@ -294,7 +294,7 @@ if "__main__" == __name__:
     # Write the generated code to a file
     open("_generated.py", "w").write(tmp)
     # Execute the generated code
-    # subprocess.run(["python", "_generated.py"])
+    subprocess.run(["python", "_generated.py"])
 
 
 if "__main__" == __name__:
