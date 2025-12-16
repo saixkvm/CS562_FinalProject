@@ -51,7 +51,6 @@ def query():
             if rowchecktuple == groupingattributekey:
                #Grouping variable 1
                if row['state']=='NJ' :
-                   
                    mfstruct[groupingattributekey]['1_min_quant'] = min(mfstruct[groupingattributekey]['1_min_quant'], row['quant'])
                    mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
                #Grouping variable 3
