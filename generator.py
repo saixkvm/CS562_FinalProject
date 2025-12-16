@@ -85,7 +85,15 @@ def input_processing():
         print(predicatehashmap)
         print(havingClause)
 
-        if numberOfGroupingVariables != len(vectorOfAggregateFunctions.keys()) and numberOfGroupingVariables != len(predicatehashmap.keys()):
+        vector_keys = set(vectorOfAggregateFunctions.keys())
+        predicate_keys = set(predicatehashmap.keys())
+        all_keys = vector_keys | predicate_keys
+        
+        for attr in select_attributes:
+            if not attr in groupingattributes and not attr in all_keys:
+                raise ValueError(f"attr {attr} must appear in the grouping attributes list or be used in an aggregate function")
+            
+        if numberOfGroupingVariables != len(vector_keys) and numberOfGroupingVariables != len(predicate_keys):
             raise ValueError("Number of grouping variables doesn't match the number of grouping variables for the aggregate functions or predicates")
         
         return [select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause]
