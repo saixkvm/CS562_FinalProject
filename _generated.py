@@ -21,54 +21,49 @@ def query():
     
     _global = []
     
-    mfstruct = {}
-    group = ('prod', 'cust')
+    column_names = [desc[0] for desc in cur.description]
     
+    mfstruct = {}
+    group = ('prod', 'month', 'year')
+    
+    for column in group:
+        if column not in column_names:
+            raise ValueError("Unknown Column")
     #Creating the mfstruct
     for row in cur:
         current_group = tuple([row[attr] for attr in group])
         mfstruct[current_group] = dict()
         for attr in group:
             mfstruct[current_group][attr] = row[attr]
-        mfstruct[current_group]['1_min_quant'] = float('inf')
-        mfstruct[current_group]['1_sum_quant'] = 0
-        mfstruct[current_group]['3_avg_quant'] = [0,0,0]
-        mfstruct[current_group]['3_sum_quant'] = 0
-        mfstruct[current_group]['2_min_quant'] = float('inf')
-        mfstruct[current_group]['2_sum_quant'] = 0
-        mfstruct[current_group]['4_sum_quant'] = 0
+        mfstruct[current_group]['1_avg_quant'] = [0,0,0]
+        mfstruct[current_group]['2_avg_quant'] = [0,0,0]
 
     
 
     #Predicates
-    #We do 1==1 if the grouping variable doesn't have a predicate
+    #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
         rowchecktuple = tuple(row[attr] for attr in group)
-        
         for groupingattributekey in mfstruct:
-            
-            if rowchecktuple == groupingattributekey:
+            try:
                #Grouping variable 1
-               if row['state']=='NJ' :
-                   mfstruct[groupingattributekey]['1_min_quant'] = min(mfstruct[groupingattributekey]['1_min_quant'], row['quant'])
-                   mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
-               #Grouping variable 3
-               if row['state']=='CT':
-                   num, denom, avg = mfstruct[groupingattributekey]['3_avg_quant']
+               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['month'] == row['month'] and mfstruct[groupingattributekey]['year'] == row['year']:
+                   num, denom, avg = mfstruct[groupingattributekey]['1_avg_quant']
                    num += row['quant']
                    denom += 1
                    avg = num/denom
-                   mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
-                   mfstruct[groupingattributekey]['3_sum_quant'] += row['quant']
+                   mfstruct[groupingattributekey]['1_avg_quant'] = [num, denom, avg]
                #Grouping variable 2
-               if row['state']=='NY':
-                   mfstruct[groupingattributekey]['2_min_quant'] = min(mfstruct[groupingattributekey]['2_min_quant'], row['quant'])
-                   mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
-               #Grouping variable 4
-               if 1==1:
-                   mfstruct[groupingattributekey]['4_sum_quant'] += row['quant']
-    
+               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['year'] == row['year']:
+                   num, denom, avg = mfstruct[groupingattributekey]['2_avg_quant']
+                   num += row['quant']
+                   denom += 1
+                   avg = num/denom
+                   mfstruct[groupingattributekey]['2_avg_quant'] = [num, denom, avg]
+ 
+            except KeyError:
+                raise ValueError("A grouping variable has an unknown column")
 
 
 
@@ -80,17 +75,17 @@ def query():
     for groupingattributekey, aggrfuncmap in mfstruct.items():
         row = dict()
         
-        row['cust'] = aggrfuncmap['cust']
         row['prod'] = aggrfuncmap['prod']
-        row['1_sum_quant'] = aggrfuncmap['1_sum_quant']
-        row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
-        row['3_sum_quant'] = aggrfuncmap['3_sum_quant']
-        row['4_sum_quant'] = aggrfuncmap['4_sum_quant']
+        row['month'] = aggrfuncmap['month']
+        row['year'] = aggrfuncmap['year']
+        row['1_avg_quant / 2_avg_quant'] = aggrfuncmap['1_avg_quant'][2] / aggrfuncmap['2_avg_quant'][2]
 
         _global.append(row)
     
     
-    
+    # print(mfstruct)
+    # return 1
+    # print(mfstruct[(11,'Grapes')])
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 

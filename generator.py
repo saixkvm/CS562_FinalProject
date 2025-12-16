@@ -1,7 +1,7 @@
 import subprocess
 import re
 def input_processing():
-        with open("input.txt", "r") as f:
+        with open("input3.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -15,7 +15,7 @@ def input_processing():
             select_attributes[i] = select_attributes[i].strip()
 
         # NUMBER OF GROUPING VARIABLES
-        numberOfGroupingVariables = parts[2].split('\n')[1]
+        numberOfGroupingVariables = int(parts[2].split('\n')[1])
         # print(numberOfGroupingVariables)
 
         # GROUPING VARIABLES LIST
@@ -85,6 +85,17 @@ def input_processing():
         print(predicatehashmap)
         print(havingClause)
 
+        vector_keys = set(vectorOfAggregateFunctions.keys())
+        predicate_keys = set(predicatehashmap.keys())
+        all_keys = vector_keys | predicate_keys
+        
+        for attr in select_attributes:
+            if not attr in groupingattributes and not attr in all_keys:
+                raise ValueError(f"attr {attr} must appear in the grouping attributes list or be used in an aggregate function")
+            
+        if numberOfGroupingVariables != len(vector_keys) and numberOfGroupingVariables != len(predicate_keys):
+            raise ValueError("Number of grouping variables doesn't match the number of grouping variables for the aggregate functions or predicates")
+        
         return [select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause]
 
 
@@ -94,46 +105,22 @@ def create_gV_keys(vectorOfAggregateFunctions):
         for aggr in vectorOfAggregateFunctions[gV]:
             func = aggr.split("_")[0]
             full_func = gV + "_" + aggr
-            if func == "min":
-                res += f"        mfstruct[current_group]['{full_func}'] = float('inf')\n"
-            elif func == "max":
-                res += f"        mfstruct[current_group]['{full_func}'] = float('-inf')\n"
-            elif func == "avg":
-                res += f"        mfstruct[current_group]['{full_func}'] = [0,0,0]\n"
-            else:
-                res += f"        mfstruct[current_group]['{full_func}'] = 0\n"
+            match func:
+                case "min":
+                    res += f"        mfstruct[current_group]['{full_func}'] = float('inf')\n"
+                case "max":
+                    res += f"        mfstruct[current_group]['{full_func}'] = float('-inf')\n"
+                case  "avg":
+                    res += f"        mfstruct[current_group]['{full_func}'] = [0,0,0]\n"
+                case "count" | "sum":
+                    res += f"        mfstruct[current_group]['{full_func}'] = 0\n"
+                case _:
+                    raise ValueError("Unknown aggregate function")
     return res
+
 
 def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
     res = ""
-#     for gV, pred in predicatehashmap.items():
-#         pred = re.sub(r"\bAND\b", "and", pred)
-#         pred = re.sub(r"\bOR\b", "or", pred)
-#         pred = re.sub(r"\bNOT\b", "not", pred)
-#         pred = re.sub(r"(?<![<>!])=", "==", pred)
-#         pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
-        
-#         res += f"                #Grouping variable {gV}\n"
-#         res += f"                if {pred}:\n"
-        
-#         for aggr in vectorOfAggregateFunctions[gV]:
-#             func, attribute = aggr.split("_")
-#             full_func = gV + "_" + aggr
-#             if func == "min":
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
-#             elif func == "max":
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
-#             elif func == "sum":
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
-#             elif func == "count":
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] += 1\n"
-#             else:
-#                 res += f"                    num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
-#                 res += f"                    num += row['{attribute}']\n"
-#                 res += f"                    denom += 1\n"
-#                 res += f"                    avg = num/denom\n"
-#                 res += f"                    mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
-    
     for gV, aggrs in vectorOfAggregateFunctions.items():
         res += f"               #Grouping variable {gV}\n"
 
@@ -144,10 +131,33 @@ def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
             pred = re.sub(r"\bOR\b", "or", pred)
             pred = re.sub(r"\bNOT\b", "not", pred)
             pred = re.sub(r"(?<![<>!])=", "==", pred)
-            pred = re.sub(r"\d+\.(\w*)",r"row['\1']",pred)
-            res += f"               if {pred}:\n"
+            pred = pred.strip()
+            
+            
+            condition_matches = re.findall(r"\d+\.(\w+)\s*([<>!=]+)\s*(?:'([^']*)'|(\w+))", pred)
+            
+            emf = False
+            
+            for condition in condition_matches:
+                val1 = condition[0]
+                op = condition[1]
+                val2 = condition[2]
+                val3 = condition[3]
+                
+                if val3 is None:
+                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val2}", f"row['{val1}'] {op} {val2}", pred)
+                elif val1 == val3:
+                    emf = True
+                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"mfstruct[groupingattributekey]['{val1}'] {op} row['{val3}']",pred)
+                else:
+                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"row['{val1}'] {op} {val3}", pred) 
+            
+            if emf:
+                res += f"               if {pred}:\n"
+            else:
+                res += f"               if rowchecktuple == groupingattributekey and ({pred}):\n"
         else:
-            res += f"               if 1==1:\n"
+            res += f"                   if rowchecktuple == groupingattributekey:\n"
         for aggr in aggrs:
             func, attribute = aggr.split("_")
             full_func = gV + "_" + aggr
@@ -178,9 +188,12 @@ def create_having(havingClause):
         havingClause = re.sub(r"(?<![<>!])=", "==", havingClause)
         havingClause = re.sub(r"(\w+_(?:sum|avg|min|max)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
         
-        res += "    for groupingattributekey in list(mfstruct):\n"
-        res += f"        if not ({havingClause}):\n"
-        res += "            del mfstruct[groupingattributekey]"
+        res += "    try:\n"
+        res += "        for groupingattributekey in list(mfstruct):\n"
+        res += f"            if not ({havingClause}):\n"
+        res += "                del mfstruct[groupingattributekey]\n"
+        res += "    except KeyError:\n"
+        res += "        raise ValueError('The having clause references an unknown attribute')"
     return res
 
 
@@ -188,10 +201,13 @@ def create_projection(select_attributes, groupingattributes):
     res = ""
     
     for attr in select_attributes:
-        if "_avg_" in attr:
-            res += f"        row['{attr}'] = aggrfuncmap['{attr}'][2]\n"
-        else:
+        if attr in groupingattributes:
             res += f"        row['{attr}'] = aggrfuncmap['{attr}']\n"
+        else:
+            tmp = attr
+            attr = re.sub(r"(\w+_(?:sum|min|max)_\w+)", r"aggrfuncmap['\1']", attr)
+            attr = re.sub(r"(\w+_(?:avg)_\w+)", r"aggrfuncmap['\1'][2]", attr)
+            res += f"        row['{tmp}'] = {attr}\n"
     return res
 
 def main():
@@ -203,9 +219,14 @@ def main():
     select_attributes, numberOfGroupingVariables, groupingattributes, vectorOfAggregateFunctions, predicatehashmap, havingClause = input_processing()
     
     body = f"""
+    column_names = [desc[0] for desc in cur.description]
+    
     mfstruct = {{}}
     group = {tuple([gA for gA in groupingattributes])}
     
+    for column in group:
+        if column not in column_names:
+            raise ValueError("Unknown Column")
     #Creating the mfstruct
     for row in cur:
         current_group = tuple([row[attr] for attr in group])
@@ -216,15 +237,15 @@ def main():
     
 
     #Predicates
-    #We do 1==1 if the grouping variable doesn't have a predicate
+    #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
         rowchecktuple = tuple(row[attr] for attr in group)
-        
         for groupingattributekey in mfstruct:
-            
-            if rowchecktuple == groupingattributekey:
-{create_predicates(predicatehashmap, vectorOfAggregateFunctions)}    
+            try:
+{create_predicates(predicatehashmap, vectorOfAggregateFunctions)} 
+            except KeyError:
+                raise ValueError("A grouping variable has an unknown column")
 
 
 
@@ -266,7 +287,9 @@ def query():
     _global = []
     {body}
     
-    
+    # print(mfstruct)
+    # return 1
+    # print(mfstruct[(11,'Grapes')])
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 
