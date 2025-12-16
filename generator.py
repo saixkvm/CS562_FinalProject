@@ -129,7 +129,6 @@ def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
             
             condition_matches = re.findall(r"\d+\.(\w+)\s*([<>!=]+)\s*(?:'([^']*)'|(\w+))", pred)
             
-            emf = False
             
             for condition in condition_matches:
                 val1 = condition[0]
@@ -141,34 +140,32 @@ def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
                     pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val2}", f"row['{val1}'] {op} {val2}", pred)
                 elif val1 == val3:
                     emf = True
-                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"mfstruct[groupingattributekey]['{val1}'] {op} row['{val3}']",pred)
+                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"mfstruct[rowchecktuple]['{val1}'] {op} row['{val3}']",pred)
                 else:
                     pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"row['{val1}'] {op} {val3}", pred) 
+
             
-            if emf:
-                res += f"               if {pred}:\n"
-            else:
-                res += f"               if rowchecktuple == groupingattributekey and ({pred}):\n"
+            res += f"               if {pred}:\n"
         else:
-            res += f"               if rowchecktuple == groupingattributekey:\n"
+            res += f"               if 1==1:\n"
         for aggr in aggrs:
             func, attribute = aggr.split("_")
             full_func = gV + "_" + aggr
             match func:
                 case "min":
-                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] = min(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] = min(mfstruct[rowchecktuple]['{full_func}'], row['{attribute}'])\n"
                 case "max":
-                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] = max(mfstruct[groupingattributekey]['{full_func}'], row['{attribute}'])\n"
+                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] = max(mfstruct[rowchecktuple]['{full_func}'], row['{attribute}'])\n"
                 case "sum":
-                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] += row['{attribute}']\n"
+                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] += row['{attribute}']\n"
                 case "count":
-                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] += 1\n"
+                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] += 1\n"
                 case "avg":
-                    res += f"                   num, denom, avg = mfstruct[groupingattributekey]['{full_func}']\n"
+                    res += f"                   num, denom, avg = mfstruct[rowchecktuple]['{full_func}']\n"
                     res += f"                   num += row['{attribute}']\n"
                     res += f"                   denom += 1\n"
                     res += f"                   avg = num/denom\n"
-                    res += f"                   mfstruct[groupingattributekey]['{full_func}'] = [num, denom, avg]\n"
+                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] = [num, denom, avg]\n"
                 case _:
                     raise ValueError("Unknown aggregate function")
     
@@ -236,7 +233,7 @@ def main():
     cur.execute("SELECT * FROM sales")
     for row in cur:
         rowchecktuple = tuple(row[attr] for attr in group)
-        for groupingattributekey in mfstruct:
+        if rowchecktuple in mfstruct:
             try:
 {create_predicates(predicatehashmap, vectorOfAggregateFunctions)} 
             except KeyError:
@@ -297,7 +294,7 @@ if "__main__" == __name__:
     # Write the generated code to a file
     open("_generated.py", "w").write(tmp)
     # Execute the generated code
-    subprocess.run(["python", "_generated.py"])
+    # subprocess.run(["python", "_generated.py"])
 
 
 if "__main__" == __name__:
