@@ -11,6 +11,5 @@ SELECT CONDITION-VECT([σ]):
 2.state='NY' AND 2.prod = 'Apple'
 3.state='CT' AND 3.prod = 'Apple'
 HAVING_CONDITION(G):
-1_count_quant > 2_count_quant
 
 

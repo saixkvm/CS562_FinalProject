@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('month', 'prod', 'year')
+    group = ('cust', 'prod')
     
     for column in group:
         if column not in column_names:
@@ -35,9 +35,9 @@ def query():
         mfstruct[current_group] = dict()
         for attr in group:
             mfstruct[current_group][attr] = row[attr]
-        mfstruct[current_group]['1_avg_quant'] = [0,0,0]
-        mfstruct[current_group]['2_avg_quant'] = [0,0,0]
-        mfstruct[current_group]['3_avg_quant'] = [0,0,0]
+        mfstruct[current_group]['1_sum_quant'] = 0
+        mfstruct[current_group]['2_sum_quant'] = 0
+        mfstruct[current_group]['3_sum_quant'] = 0
 
     
 
@@ -45,30 +45,18 @@ def query():
     #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
-        rowchecktuple = tuple(row[attr] for attr in group)
-        if rowchecktuple in mfstruct:
+        row_group = tuple(row[attr] for attr in group)
+        if row_group in mfstruct:
             try:
                #Grouping variable 1
-               if mfstruct[rowchecktuple]['prod'] == row['prod'] and mfstruct[rowchecktuple]['month'] == row['month'] and mfstruct[rowchecktuple]['year'] == row['year']:
-                   num, denom, avg = mfstruct[rowchecktuple]['1_avg_quant']
-                   num += row['quant']
-                   denom += 1
-                   avg = num/denom
-                   mfstruct[rowchecktuple]['1_avg_quant'] = [num, denom, avg]
+               if row['state'] == 'NJ' and row['prod'] == 'Apple':
+                   mfstruct[row_group]['1_sum_quant'] += row['quant']
                #Grouping variable 2
-               if mfstruct[rowchecktuple]['prod'] == row['prod'] and mfstruct[rowchecktuple]['year'] == row['year']:
-                   num, denom, avg = mfstruct[rowchecktuple]['2_avg_quant']
-                   num += row['quant']
-                   denom += 1
-                   avg = num/denom
-                   mfstruct[rowchecktuple]['2_avg_quant'] = [num, denom, avg]
+               if row['state'] == 'NY' and row['prod'] == 'Apple':
+                   mfstruct[row_group]['2_sum_quant'] += row['quant']
                #Grouping variable 3
-               if row['state'] == 'NJ':
-                   num, denom, avg = mfstruct[rowchecktuple]['3_avg_quant']
-                   num += row['quant']
-                   denom += 1
-                   avg = num/denom
-                   mfstruct[rowchecktuple]['3_avg_quant'] = [num, denom, avg]
+               if row['state'] == 'CT' and row['prod'] == 'Apple':
+                   mfstruct[row_group]['3_sum_quant'] += row['quant']
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -83,19 +71,15 @@ def query():
     for groupingattributekey, aggrfuncmap in mfstruct.items():
         row = dict()
         
+        row['cust'] = aggrfuncmap['cust']
         row['prod'] = aggrfuncmap['prod']
-        row['month'] = aggrfuncmap['month']
-        row['year'] = aggrfuncmap['year']
-        row['1_avg_quant'] = aggrfuncmap['1_avg_quant'][2]
-        row['2_avg_quant'] = aggrfuncmap['2_avg_quant'][2]
-        row['3_avg_quant'] = aggrfuncmap['3_avg_quant'][2]
+        row['1_sum_quant'] = aggrfuncmap['1_sum_quant']
+        row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
+        row['3_sum_quant'] = aggrfuncmap['3_sum_quant']
 
         _global.append(row)
     
     
-    # print(mfstruct)
-    # return 1
-    # print(mfstruct[(11,'Grapes')])
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 

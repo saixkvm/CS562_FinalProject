@@ -2,7 +2,7 @@ import subprocess
 import re
 def input_processing():
     
-        with open("input3.txt", "r") as f:
+        with open("input.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -69,12 +69,12 @@ def input_processing():
                     vectorOfAggregateFunctions[group_variable].append(aggr_func)
 
 
-        print(select_attributes)
-        print(numberOfGroupingVariables)
-        print(groupingattributes)
-        print(vectorOfAggregateFunctions)
-        print(predicatehashmap)
-        print(havingClause)
+        # print(select_attributes)
+        # print(numberOfGroupingVariables)
+        # print(groupingattributes)
+        # print(vectorOfAggregateFunctions)
+        # print(predicatehashmap)
+        # print(havingClause)
 
         vector_keys = set(vectorOfAggregateFunctions.keys())
         predicate_keys = set(predicatehashmap.keys())
@@ -85,7 +85,7 @@ def input_processing():
                 continue
             if not attr in groupingattributes and not attr in all_keys:
                 raise ValueError(f"attr {attr} must appear in the grouping attributes list or be used in an aggregate function")
-            
+        
         if numberOfGroupingVariables != len(vector_keys) and numberOfGroupingVariables != len(predicate_keys):
             raise ValueError("Number of grouping variables doesn't match the number of grouping variables for the aggregate functions or predicates")
         
@@ -113,59 +113,88 @@ def create_gV_keys(vectorOfAggregateFunctions):
 
 
 def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
+    '''
+    Dynamically creates the prediactes based on the query
+    
+    :param predicatehashmap: The "such that" clause
+    :param vectorOfAggregateFunctions: The grouping variable aggregate functions
+    '''
     res = ""
     for gV, aggrs in vectorOfAggregateFunctions.items():
+        #Adds a comment in the generated file to specify the grouing variable that the if statement belongs to
         res += f"               #Grouping variable {gV}\n"
 
         if gV in predicatehashmap:
             
             pred = predicatehashmap[gV]
+            
+            #Regex to transfrom SQL AND/OR/NOT to python and/or/not, since having uppercase AND/OR/NOT causes an error in python
+            #\b at both ends to ensure we don't transform the middle of a word (ex: BAND -> Band)
             pred = re.sub(r"\bAND\b", "and", pred)
             pred = re.sub(r"\bOR\b", "or", pred)
             pred = re.sub(r"\bNOT\b", "not", pred)
+            
+            #Regex to trasnform SQL's equality '=' into Python's equality '=='
+            #(?<![<>!]): If the '=' is preceeded with <, > or !, don't trasnform it into '=='
             pred = re.sub(r"(?<![<>!])=", "==", pred)
             pred = pred.strip()
             
-            
+            #Regex to find all of the grouping variable conditons (ex: 1.state = 'NJ' or 2.month > month)
             condition_matches = re.findall(r"\d+\.(\w+)\s*([<>!=]+)\s*(?:'([^']*)'|(\w+))", pred)
             
             
+            # Condition has 4 groups
+            # Group 1 (val1) is the column name
+            # Group 2 (op) is the operator of the condition
+            # Group 3 (val2) captures anything that is inside the quotation marks ''
+            # Group 4 (val3) captures anything that isn't inside quotation marks
+            
+            # Ex:
+            # 1.state = 'NJ' => Group 1 = state; Group 2 = '='; Group 3 = NJ; Group 4 = None
+            # 2.quant > 100 => Group 1 = quant; Group 2 = '>' ; Group 3 = None; Group 4 = 100
             for condition in condition_matches:
                 val1 = condition[0]
                 op = condition[1]
                 val2 = condition[2]
                 val3 = condition[3]
                 
+                
+                #The regex subs the condition that has val1, op, and val2 into row[val1] op val2 for mf queries
+                #Ex: 1.state = 'NJ' => row['state'] = 'NJ'
+                #For emf queries, it turns it into mfstruct[row_group][val1] op row[val3]
+                #Ex: 1.month > month => mfstruct[rowchecktupe]['month'] > row['month']
+                #For the if and elif, they're instances of mf queries
+                #The else case is an instance of emf queries
                 if val3 is None:
                     pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val2}", f"row['{val1}'] {op} {val2}", pred)
-                elif val1 == val3:
-                    emf = True
-                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"mfstruct[rowchecktuple]['{val1}'] {op} row['{val3}']",pred)
-                else:
+                elif val1 != val3:
                     pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"row['{val1}'] {op} {val3}", pred) 
+                else: 
+                    pred = re.sub(rf"\d+\.{val1}\s*{op}\s*{val3}", f"mfstruct[row_group]['{val1}'] {op} row['{val3}']",pred)
 
             
             res += f"               if {pred}:\n"
         else:
+            #Incase the grouping variable doesn't have a predicate, we just do 1==1, because dealing with the indentation sucks
             res += f"               if 1==1:\n"
         for aggr in aggrs:
             func, attribute = aggr.split("_")
             full_func = gV + "_" + aggr
             match func:
                 case "min":
-                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] = min(mfstruct[rowchecktuple]['{full_func}'], row['{attribute}'])\n"
+                    res += f"                   mfstruct[row_group]['{full_func}'] = min(mfstruct[row_group]['{full_func}'], row['{attribute}'])\n"
                 case "max":
-                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] = max(mfstruct[rowchecktuple]['{full_func}'], row['{attribute}'])\n"
+                    res += f"                   mfstruct[row_group]['{full_func}'] = max(mfstruct[row_group]['{full_func}'], row['{attribute}'])\n"
                 case "sum":
-                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] += row['{attribute}']\n"
+                    res += f"                   mfstruct[row_group]['{full_func}'] += row['{attribute}']\n"
                 case "count":
-                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] += 1\n"
+                    res += f"                   mfstruct[row_group]['{full_func}'] += 1\n"
                 case "avg":
-                    res += f"                   num, denom, avg = mfstruct[rowchecktuple]['{full_func}']\n"
+                    res += f"                   num, denom, avg = mfstruct[row_group]['{full_func}']\n"
                     res += f"                   num += row['{attribute}']\n"
                     res += f"                   denom += 1\n"
                     res += f"                   avg = num/denom\n"
-                    res += f"                   mfstruct[rowchecktuple]['{full_func}'] = [num, denom, avg]\n"
+                    res += f"                   mfstruct[row_group]['{full_func}'] = [num, denom, avg]\n"
                 case _:
                     raise ValueError("Unknown aggregate function")
     
@@ -173,14 +202,24 @@ def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
 
 
 def create_having(havingClause):
+    '''
+    Dynamically creates the having clause for the query, if it has one
+    
+    :param havingClause: The having clause for the query
+    '''
     res = ""
     if havingClause != "":
+        #Same reasoning as in create_predicate
         havingClause = re.sub(r"\bAND\b", "and", havingClause)
         havingClause = re.sub(r"\bOR\b", "or", havingClause)
         havingClause = re.sub(r"\bNOT\b", "not", havingClause) 
         havingClause = re.sub(r"(?<![<>!])=", "==", havingClause)
+        
+        #Regex that captures a grouping variable aggregate, and transforms it into mfstruct[groupingattributekey][<aggregate>]. Works for multiple
+        #Ex: 1_sum_quant > 2_sum_quant => mfstruct[groupingattributekey]['1_sum_quant'] > mfstruct[groupingattributekey]['2_sum_quant']
         havingClause = re.sub(r"(\w+_(?:sum|avg|min|max|count)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
         
+        #Do list(mfstruct) instead of mfstruct because Python doesn't like it when we change the dictionary that its iterating through 
         res += "    try:\n"
         res += "        for groupingattributekey in list(mfstruct):\n"
         res += f"            if not ({havingClause}):\n"
@@ -191,16 +230,25 @@ def create_having(havingClause):
 
 
 def create_projection(select_attributes, groupingattributes):
+    '''
+    Dynamically creates the projection for the query
+    
+    :param select_attributes: The attributes to be selected
+    :param groupingattributes: The attributes that were in the Grouping Attribute parameter (V)
+    '''
     res = ""
     
     for attr in select_attributes:
         if attr in groupingattributes:
             res += f"        row['{attr}'] = aggrfuncmap['{attr}']\n"
         else:
-            tmp = attr
+            #Regex that captures a grouping variable aggregate, and transforms it into aggrfuncmap[<aggregate>]
+            #Special case is the AVG() aggreagte, since it is formatted as [numerator, denominator, average_value]
+            #Allows for arithmetic operations such as 1_sum_quant / 2_sum_quant
+            original = attr
             attr = re.sub(r"(\w+_(?:sum|min|max|count)_\w+)", r"aggrfuncmap['\1']", attr)
             attr = re.sub(r"(\w+_(?:avg)_\w+)", r"aggrfuncmap['\1'][2]", attr)
-            res += f"        row['{tmp}'] = {attr}\n"
+            res += f"        row['{original}'] = {attr}\n"
     return res
 
 def main():
@@ -232,8 +280,8 @@ def main():
     #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
-        rowchecktuple = tuple(row[attr] for attr in group)
-        if rowchecktuple in mfstruct:
+        row_group = tuple(row[attr] for attr in group)
+        if row_group in mfstruct:
             try:
 {create_predicates(predicatehashmap, vectorOfAggregateFunctions)} 
             except KeyError:
@@ -279,9 +327,6 @@ def query():
     _global = []
     {body}
     
-    # print(mfstruct)
-    # return 1
-    # print(mfstruct[(11,'Grapes')])
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 
@@ -294,7 +339,7 @@ if "__main__" == __name__:
     # Write the generated code to a file
     open("_generated.py", "w").write(tmp)
     # Execute the generated code
-    # subprocess.run(["python", "_generated.py"])
+    subprocess.run(["python", "_generated.py"])
 
 
 if "__main__" == __name__:
