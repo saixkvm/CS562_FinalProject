@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('cust', 'month')
+    group = ('month', 'prod', 'year')
     
     for column in group:
         if column not in column_names:
@@ -35,9 +35,9 @@ def query():
         mfstruct[current_group] = dict()
         for attr in group:
             mfstruct[current_group][attr] = row[attr]
-        mfstruct[current_group]['1_max_quant'] = float('-inf')
-        mfstruct[current_group]['2_max_quant'] = float('-inf')
-        mfstruct[current_group]['3_max_quant'] = float('-inf')
+        mfstruct[current_group]['1_avg_quant'] = [0,0,0]
+        mfstruct[current_group]['2_avg_quant'] = [0,0,0]
+        mfstruct[current_group]['3_avg_quant'] = [0,0,0]
 
     
 
@@ -49,14 +49,26 @@ def query():
         if row_group in mfstruct:
             try:
                #Grouping variable 1
-               if row['year'] == 2017:
-                   mfstruct[row_group]['1_max_quant'] = max(mfstruct[row_group]['1_max_quant'], row['quant'])
+               if mfstruct[row_group]['prod'] == row['prod'] and mfstruct[row_group]['month'] == row['month'] and mfstruct[row_group]['year'] == row['year']:
+                   num, denom, avg = mfstruct[row_group]['1_avg_quant']
+                   num += row['quant']
+                   denom += 1
+                   avg = num/denom
+                   mfstruct[row_group]['1_avg_quant'] = [num, denom, avg]
                #Grouping variable 2
-               if row['year'] == 2018:
-                   mfstruct[row_group]['2_max_quant'] = max(mfstruct[row_group]['2_max_quant'], row['quant'])
+               if mfstruct[row_group]['prod'] == row['prod'] and mfstruct[row_group]['year'] == row['year']:
+                   num, denom, avg = mfstruct[row_group]['2_avg_quant']
+                   num += row['quant']
+                   denom += 1
+                   avg = num/denom
+                   mfstruct[row_group]['2_avg_quant'] = [num, denom, avg]
                #Grouping variable 3
-               if row['year'] == 2019:
-                   mfstruct[row_group]['3_max_quant'] = max(mfstruct[row_group]['3_max_quant'], row['quant'])
+               if row['state'] == 'NJ':
+                   num, denom, avg = mfstruct[row_group]['3_avg_quant']
+                   num += row['quant']
+                   denom += 1
+                   avg = num/denom
+                   mfstruct[row_group]['3_avg_quant'] = [num, denom, avg]
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -64,23 +76,19 @@ def query():
 
 
     #Having clause
-    try:
-        for groupingattributekey in list(mfstruct):
-            if not (mfstruct[groupingattributekey]['1_max_quant'] > mfstruct[groupingattributekey]['2_max_quant'] and mfstruct[groupingattributekey]['1_max_quant'] > mfstruct[groupingattributekey]['3_max_quant']):
-                del mfstruct[groupingattributekey]
-    except KeyError:
-        raise ValueError('The having clause references an unknown attribute')
+
 
 
     #Projection
     for groupingattributekey, aggrfuncmap in mfstruct.items():
         row = dict()
         
-        row['cust'] = aggrfuncmap['cust']
+        row['prod'] = aggrfuncmap['prod']
         row['month'] = aggrfuncmap['month']
-        row['1_max_quant'] = aggrfuncmap['1_max_quant']
-        row['2_max_quant'] = aggrfuncmap['2_max_quant']
-        row['3_max_quant'] = aggrfuncmap['3_max_quant']
+        row['year'] = aggrfuncmap['year']
+        row['1_avg_quant'] = aggrfuncmap['1_avg_quant'][2]
+        row['2_avg_quant'] = aggrfuncmap['2_avg_quant'][2]
+        row['3_avg_quant'] = aggrfuncmap['3_avg_quant'][2]
 
         _global.append(row)
     

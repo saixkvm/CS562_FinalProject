@@ -41,6 +41,8 @@ def query():
         mfstruct[current_group]['2_max_quant'] = float('-inf')
         mfstruct[current_group]['3_count_quant'] = 0
         mfstruct[current_group]['3_max_quant'] = float('-inf')
+        mfstruct[current_group]['4_count_quant'] = 0
+        mfstruct[current_group]['4_max_quant'] = float('-inf')
 
     
 
@@ -48,21 +50,25 @@ def query():
     #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
-        rowchecktuple = tuple(row[attr] for attr in group)
-        for groupingattributekey in mfstruct:
+        row_group = tuple(row[attr] for attr in group)
+        if row_group in mfstruct:
             try:
                #Grouping variable 1
-               if rowchecktuple == groupingattributekey and (row['prod'] == 'Butter'):
-                   mfstruct[groupingattributekey]['1_count_quant'] += 1
-                   mfstruct[groupingattributekey]['1_max_quant'] = max(mfstruct[groupingattributekey]['1_max_quant'], row['quant'])
+               if row['prod'] == 'Butter':
+                   mfstruct[row_group]['1_count_quant'] += 1
+                   mfstruct[row_group]['1_max_quant'] = max(mfstruct[row_group]['1_max_quant'], row['quant'])
                #Grouping variable 2
-               if rowchecktuple == groupingattributekey and (row['prod'] == 'Jelly'):
-                   mfstruct[groupingattributekey]['2_count_quant'] += 1
-                   mfstruct[groupingattributekey]['2_max_quant'] = max(mfstruct[groupingattributekey]['2_max_quant'], row['quant'])
+               if row['prod'] == 'Jelly':
+                   mfstruct[row_group]['2_count_quant'] += 1
+                   mfstruct[row_group]['2_max_quant'] = max(mfstruct[row_group]['2_max_quant'], row['quant'])
                #Grouping variable 3
-               if rowchecktuple == groupingattributekey and (row['prod'] == 'Ham'):
-                   mfstruct[groupingattributekey]['3_count_quant'] += 1
-                   mfstruct[groupingattributekey]['3_max_quant'] = max(mfstruct[groupingattributekey]['3_max_quant'], row['quant'])
+               if row['prod'] == 'Ham':
+                   mfstruct[row_group]['3_count_quant'] += 1
+                   mfstruct[row_group]['3_max_quant'] = max(mfstruct[row_group]['3_max_quant'], row['quant'])
+               #Grouping variable 4
+               if row['prod'] == 'Apple':
+                   mfstruct[row_group]['4_count_quant'] += 1
+                   mfstruct[row_group]['4_max_quant'] = max(mfstruct[row_group]['4_max_quant'], row['quant'])
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -89,13 +95,12 @@ def query():
         row['2_max_quant'] = aggrfuncmap['2_max_quant']
         row['3_count_quant'] = aggrfuncmap['3_count_quant']
         row['3_max_quant'] = aggrfuncmap['3_max_quant']
+        row['4_count_quant'] = aggrfuncmap['4_count_quant']
+        row['4_max_quant'] = aggrfuncmap['4_max_quant']
 
         _global.append(row)
     
     
-    # print(mfstruct)
-    # return 1
-    # print(mfstruct[(11,'Grapes')])
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 
