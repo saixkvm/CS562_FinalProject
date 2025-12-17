@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('prod', 'cust')
+    group = ('cust', 'prod')
     
     for column in group:
         if column not in column_names:
@@ -35,13 +35,9 @@ def query():
         mfstruct[current_group] = dict()
         for attr in group:
             mfstruct[current_group][attr] = row[attr]
-        mfstruct[current_group]['1_min_quant'] = float('inf')
         mfstruct[current_group]['1_sum_quant'] = 0
-        mfstruct[current_group]['3_avg_quant'] = [0,0,0]
-        mfstruct[current_group]['3_sum_quant'] = 0
-        mfstruct[current_group]['2_min_quant'] = float('inf')
         mfstruct[current_group]['2_sum_quant'] = 0
-        mfstruct[current_group]['4_sum_quant'] = 0
+        mfstruct[current_group]['3_sum_quant'] = 0
 
     
 
@@ -49,28 +45,18 @@ def query():
     #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
-        rowchecktuple = tuple(row[attr] for attr in group)
-        for groupingattributekey in mfstruct:
+        row_group = tuple(row[attr] for attr in group)
+        if row_group in mfstruct:
             try:
                #Grouping variable 1
-               if rowchecktuple == groupingattributekey and (row['state'] == 'NJ'):
-                   mfstruct[groupingattributekey]['1_min_quant'] = min(mfstruct[groupingattributekey]['1_min_quant'], row['quant'])
-                   mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
-               #Grouping variable 3
-               if rowchecktuple == groupingattributekey and (row['state'] == 'CT'):
-                   num, denom, avg = mfstruct[groupingattributekey]['3_avg_quant']
-                   num += row['quant']
-                   denom += 1
-                   avg = num/denom
-                   mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
-                   mfstruct[groupingattributekey]['3_sum_quant'] += row['quant']
+               if row['state'] == 'NJ' and row['prod'] == 'Apple':
+                   mfstruct[row_group]['1_sum_quant'] += row['quant']
                #Grouping variable 2
-               if rowchecktuple == groupingattributekey and (row['state'] == 'NY'):
-                   mfstruct[groupingattributekey]['2_min_quant'] = min(mfstruct[groupingattributekey]['2_min_quant'], row['quant'])
-                   mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
-               #Grouping variable 4
-               if rowchecktuple == groupingattributekey:
-                   mfstruct[groupingattributekey]['4_sum_quant'] += row['quant']
+               if row['state'] == 'NY' and row['prod'] == 'Apple':
+                   mfstruct[row_group]['2_sum_quant'] += row['quant']
+               #Grouping variable 3
+               if row['state'] == 'CT' and row['prod'] == 'Apple':
+                   mfstruct[row_group]['3_sum_quant'] += row['quant']
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -90,14 +76,10 @@ def query():
         row['1_sum_quant'] = aggrfuncmap['1_sum_quant']
         row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
         row['3_sum_quant'] = aggrfuncmap['3_sum_quant']
-        row['4_sum_quant'] = aggrfuncmap['4_sum_quant']
 
         _global.append(row)
     
     
-    # print(mfstruct)
-    # return 1
-    # print(mfstruct[(11,'Grapes')])
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 
