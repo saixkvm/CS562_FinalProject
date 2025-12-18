@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('cust', 'month')
+    group = ('month', 'cust')
     
     for column in group:
         if column not in column_names:
@@ -36,7 +36,6 @@ def query():
         for attr in group:
             mfstruct[current_group][attr] = row[attr]
         mfstruct[current_group]['1_sum_quant'] = 0
-        mfstruct[current_group]['2_sum_quant'] = 0
 
     
 
@@ -48,11 +47,8 @@ def query():
         for groupingattributekey in mfstruct:
             try:
                #Grouping variable 1
-               if mfstruct[groupingattributekey]['cust'] == row['cust'] and mfstruct[groupingattributekey]['month'] == row['month']:
+               if rowchecktuple == groupingattributekey and (row['state'] == 'CT'):
                    mfstruct[groupingattributekey]['1_sum_quant'] += row['quant']
-               #Grouping variable 2
-               if mfstruct[groupingattributekey]['cust'] != row['cust'] and mfstruct[groupingattributekey]['month'] == row['month']:
-                   mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -70,7 +66,6 @@ def query():
         row['cust'] = aggrfuncmap['cust']
         row['month'] = aggrfuncmap['month']
         row['1_sum_quant'] = aggrfuncmap['1_sum_quant']
-        row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
 
         _global.append(row)
     

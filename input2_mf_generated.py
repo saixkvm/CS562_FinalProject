@@ -45,18 +45,18 @@ def query():
     #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
-        row_group = tuple(row[attr] for attr in group)
-        if row_group in mfstruct:
+        rowchecktuple = tuple(row[attr] for attr in group)
+        for groupingattributekey in mfstruct:
             try:
                #Grouping variable 1
-               if row['year'] == 2017:
-                   mfstruct[row_group]['1_max_quant'] = max(mfstruct[row_group]['1_max_quant'], row['quant'])
+               if rowchecktuple == groupingattributekey and (row['year'] == 2017):
+                   mfstruct[groupingattributekey]['1_max_quant'] = max(mfstruct[groupingattributekey]['1_max_quant'], row['quant'])
                #Grouping variable 2
-               if row['year'] == 2018:
-                   mfstruct[row_group]['2_max_quant'] = max(mfstruct[row_group]['2_max_quant'], row['quant'])
+               if rowchecktuple == groupingattributekey and (row['year'] == 2018):
+                   mfstruct[groupingattributekey]['2_max_quant'] = max(mfstruct[groupingattributekey]['2_max_quant'], row['quant'])
                #Grouping variable 3
-               if row['year'] == 2019:
-                   mfstruct[row_group]['3_max_quant'] = max(mfstruct[row_group]['3_max_quant'], row['quant'])
+               if rowchecktuple == groupingattributekey and (row['year'] == 2019):
+                   mfstruct[groupingattributekey]['3_max_quant'] = max(mfstruct[groupingattributekey]['3_max_quant'], row['quant'])
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")

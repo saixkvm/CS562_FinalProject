@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('month', 'prod', 'year')
+    group = ('prod', 'year', 'month')
     
     for column in group:
         if column not in column_names:
@@ -45,30 +45,30 @@ def query():
     #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
-        row_group = tuple(row[attr] for attr in group)
-        if row_group in mfstruct:
+        rowchecktuple = tuple(row[attr] for attr in group)
+        for groupingattributekey in mfstruct:
             try:
                #Grouping variable 1
-               if mfstruct[row_group]['prod'] == row['prod'] and mfstruct[row_group]['month'] == row['month'] and mfstruct[row_group]['year'] == row['year']:
-                   num, denom, avg = mfstruct[row_group]['1_avg_quant']
+               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['month'] == row['month'] and mfstruct[groupingattributekey]['year'] == row['year']:
+                   num, denom, avg = mfstruct[groupingattributekey]['1_avg_quant']
                    num += row['quant']
                    denom += 1
                    avg = num/denom
-                   mfstruct[row_group]['1_avg_quant'] = [num, denom, avg]
+                   mfstruct[groupingattributekey]['1_avg_quant'] = [num, denom, avg]
                #Grouping variable 2
-               if mfstruct[row_group]['prod'] == row['prod'] and mfstruct[row_group]['year'] == row['year']:
-                   num, denom, avg = mfstruct[row_group]['2_avg_quant']
+               if mfstruct[groupingattributekey]['prod'] == row['prod'] and mfstruct[groupingattributekey]['year'] == row['year']:
+                   num, denom, avg = mfstruct[groupingattributekey]['2_avg_quant']
                    num += row['quant']
                    denom += 1
                    avg = num/denom
-                   mfstruct[row_group]['2_avg_quant'] = [num, denom, avg]
+                   mfstruct[groupingattributekey]['2_avg_quant'] = [num, denom, avg]
                #Grouping variable 3
-               if row['state'] == 'NJ':
-                   num, denom, avg = mfstruct[row_group]['3_avg_quant']
+               if rowchecktuple == groupingattributekey and (row['state'] == 'NJ'):
+                   num, denom, avg = mfstruct[groupingattributekey]['3_avg_quant']
                    num += row['quant']
                    denom += 1
                    avg = num/denom
-                   mfstruct[row_group]['3_avg_quant'] = [num, denom, avg]
+                   mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")

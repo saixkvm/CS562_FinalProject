@@ -2,7 +2,7 @@ import subprocess
 import re
 def input_processing():
     
-        with open("test_input.txt", "r") as f:
+        with open("input5_emf.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -52,8 +52,8 @@ def input_processing():
 
         for p in predicateList:
             #tmplist = predicate_list_splitting_by_ops(p)
-            cond = p.split(".")
-            predicatehashmap[cond[0]] = p
+            gV =  re.search(r'\d+(?=\.)', p)
+            predicatehashmap[gV.group()] = p
 
 
         # HAVING CLAUSE
@@ -184,7 +184,7 @@ def create_predicates(predicatehashmap, vectorOfAggregateFunctions):
                 res += f"               if rowchecktuple == groupingattributekey and ({pred}):\n"
         else:
             #Incase the grouping variable doesn't have a predicate, we match the entire group, because dealing with the indentation sucks
-            res += f"                   if rowchecktuple == groupingattributekey:\n"
+            res += f"               if rowchecktuple == groupingattributekey:\n"
         for aggr in aggrs:
             func, attribute = aggr.split("_")
             full_func = gV + "_" + aggr
@@ -342,7 +342,7 @@ if "__main__" == __name__:
     main()
     """
     # Write the generated code to a file
-    written_file = "test_input_generated.py"
+    written_file = "input5_emf_generated.py"
     open(written_file, "w").write(tmp)
     # Execute the generated code
     subprocess.run(["python", written_file])
