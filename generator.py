@@ -2,7 +2,7 @@ import subprocess
 import re
 def input_processing():
     
-        with open("input5_emf.txt", "r") as f:
+        with open("test_input.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -222,7 +222,8 @@ def create_having(havingClause):
         
         #Regex that captures a grouping variable aggregate, and transforms it into mfstruct[groupingattributekey][<aggregate>]. Works for multiple
         #Ex: 1_sum_quant > 2_sum_quant => mfstruct[groupingattributekey]['1_sum_quant'] > mfstruct[groupingattributekey]['2_sum_quant']
-        havingClause = re.sub(r"(\w+_(?:sum|avg|min|max|count)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
+        havingClause = re.sub(r"(\w+_(?:sum|min|max|count)_\w+)", r"mfstruct[groupingattributekey]['\1']", havingClause)
+        havingClause = re.sub(r"(\w+_avg_\w+)", r"mfstruct[groupingattributekey]['\1'][2]", havingClause)
         
         #Do list(mfstruct) instead of mfstruct because Python doesn't like it when we change the dictionary that its iterating through 
         res += "    try:\n"
@@ -252,7 +253,7 @@ def create_projection(select_attributes, groupingattributes):
             #Allows for arithmetic operations such as 1_sum_quant / 2_sum_quant
             original = attr
             attr = re.sub(r"(\w+_(?:sum|min|max|count)_\w+)", r"aggrfuncmap['\1']", attr)
-            attr = re.sub(r"(\w+_(?:avg)_\w+)", r"aggrfuncmap['\1'][2]", attr)
+            attr = re.sub(r"(\w+_avg_\w+)", r"aggrfuncmap['\1'][2]", attr)
             res += f"        row['{original}'] = {attr}\n"
     return res
 
@@ -342,7 +343,7 @@ if "__main__" == __name__:
     main()
     """
     # Write the generated code to a file
-    written_file = "input5_emf_generated.py"
+    written_file = "test_input_generated.py"
     open(written_file, "w").write(tmp)
     # Execute the generated code
     subprocess.run(["python", written_file])

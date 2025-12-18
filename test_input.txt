@@ -1,11 +1,13 @@
 SELECT ATTRIBUTE(S):
-cust, month, 1_sum_quant
+prod, month, year, (1_sum_quant / 2_sum_quant) * 100
 NUMBER OF GROUPING VARIABLES(n):
-1
+2
 GROUPING ATTRIBUTES(V):
-cust, month
+prod, month, year
 F-VECT([F]):
-1_sum_quant
+1_sum_quant, 2_sum_quant
 SELECT CONDITION-VECT([σ]):
-1.state = 'CT'
+1.prod = prod AND 1.month = month AND 1.year = year
+2.prod = prod AND 2.year = year
 HAVING_CONDITION(G):
+1_sum_quant > 2_avg_quant
