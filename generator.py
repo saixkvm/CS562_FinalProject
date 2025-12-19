@@ -1,8 +1,27 @@
 import subprocess
 import re
+
+'''
+Input Processing function that takes in the text input and gives back
+select attributes
+number of grouping variables
+grouping variables list
+vector of aggregate functions
+predicate list
+having clause
+
+ex.
+Select Attributes ['cust', 'prod', '1_sum_quant', '2_sum_quant', '3_sum_quant', '4_sum_quant']
+Number of grouping variables 3
+Grouping Attributes {'prod', 'cust'}
+Vector of Agg Functions {'1': ['min_quant', 'sum_quant'], '3': ['avg_quant', 'sum_quant'], '2': ['min_quant', 'sum_quant'], '4': ['sum_quant']}
+Predicate hashmap {'2': "2.state='NY'", '1': "1.state='NJ' ", '3': "3.state='CT'"}
+Having clause
+
+'''
 def input_processing():
     
-        with open("input3_mf.txt", "r") as f:
+        with open("input_mf.txt", "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -17,7 +36,6 @@ def input_processing():
 
         # NUMBER OF GROUPING VARIABLES
         numberOfGroupingVariables = int(parts[2].split('\n')[1])
-        # print(numberOfGroupingVariables)
 
         # GROUPING VARIABLES LIST
         groupingvariables = parts[3].split('\n')[1]
@@ -93,6 +111,10 @@ def input_processing():
 
 
 def create_gV_keys(vectorOfAggregateFunctions):
+    '''
+    for each grouping variable that has a list of aggregate functions, we map the full aggregate 
+    function including its grouping variable to a baseline value
+    '''
     res = ""
     for gV in vectorOfAggregateFunctions:
         for aggr in vectorOfAggregateFunctions[gV]:
@@ -104,6 +126,7 @@ def create_gV_keys(vectorOfAggregateFunctions):
                 case "max":
                     res += f"        mfstruct[current_group]['{full_func}'] = float('-inf')\n"
                 case  "avg":
+                    # maps to [numerator, denominator and avg]
                     res += f"        mfstruct[current_group]['{full_func}'] = [0,0,0]\n"
                 case "count" | "sum":
                     res += f"        mfstruct[current_group]['{full_func}'] = 0\n"
@@ -262,12 +285,23 @@ def main():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {{}}
+    # Tuple of the group by columns
     group = {tuple([gA for gA in groupingattributes])}
     
     for column in group:
         if column not in column_names:
             raise ValueError("Unknown Column")
     #Creating the mfstruct
+    # Structure of MFStruct
+    # (
+    #    (group by values) ->
+    #                          (
+    #                              group by attr -> value
+    #                              ...
+    #                              group by attr -> value
+    #                              aggregate function -> some baseline value
+    #                              ...
+    #                              aggregate function -> some baseline value))
     for row in cur:
         current_group = tuple([row[attr] for attr in group])
         mfstruct[current_group] = dict()
@@ -278,14 +312,15 @@ def main():
 
     #Predicates
     #We just check the groups if the grouping variable doesn't have a predicate
-    cur.execute("SELECT * FROM sales")
-    for row in cur:
-        row_group = tuple(row[attr] for attr in group)
-        if row_group in mfstruct:
-            try:
+    for sc in range(numberOfGroupingVariables):
+        cur.execute("SELECT * FROM sales")
+        for row in cur:
+            row_group = tuple(row[attr] for attr in group)
+            if row_group in mfstruct:
+                try:
 {create_predicates(predicatehashmap, vectorOfAggregateFunctions)} 
-            except KeyError:
-                raise ValueError("A grouping variable has an unknown column")
+                except KeyError:
+                    raise ValueError("A grouping variable has an unknown column")
 
 
 
@@ -337,9 +372,9 @@ if "__main__" == __name__:
     main()
     """
     # Write the generated code to a file
-    open("input3_mf_generated.py", "w").write(tmp)
+    open("input.py", "w").write(tmp)
     # Execute the generated code
-    subprocess.run(["python", "input3_mf_generated.py"])
+    subprocess.run(["python", "input.py"])
 
 
 if "__main__" == __name__:
