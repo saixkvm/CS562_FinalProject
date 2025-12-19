@@ -41,6 +41,8 @@ def query():
         mfstruct[current_group]['2_max_quant'] = float('-inf')
         mfstruct[current_group]['3_count_quant'] = 0
         mfstruct[current_group]['3_max_quant'] = float('-inf')
+        mfstruct[current_group]['4_count_quant'] = 0
+        mfstruct[current_group]['4_max_quant'] = float('-inf')
 
     
 
@@ -63,6 +65,10 @@ def query():
                if rowchecktuple == groupingattributekey and (row['prod'] == 'Ham'):
                    mfstruct[groupingattributekey]['3_count_quant'] += 1
                    mfstruct[groupingattributekey]['3_max_quant'] = max(mfstruct[groupingattributekey]['3_max_quant'], row['quant'])
+               #Grouping variable 4
+               if rowchecktuple == groupingattributekey and (row['prod'] == 'Apple'):
+                   mfstruct[groupingattributekey]['4_count_quant'] += 1
+                   mfstruct[groupingattributekey]['4_max_quant'] = max(mfstruct[groupingattributekey]['4_max_quant'], row['quant'])
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -89,13 +95,12 @@ def query():
         row['2_max_quant'] = aggrfuncmap['2_max_quant']
         row['3_count_quant'] = aggrfuncmap['3_count_quant']
         row['3_max_quant'] = aggrfuncmap['3_max_quant']
+        row['4_count_quant'] = aggrfuncmap['4_count_quant']
+        row['4_max_quant'] = aggrfuncmap['4_max_quant']
 
         _global.append(row)
     
     
-    # print(mfstruct)
-    # return 1
-    # print(mfstruct[(11,'Grapes')])
     return tabulate.tabulate(_global,
                         headers="keys", tablefmt="psql")
 
