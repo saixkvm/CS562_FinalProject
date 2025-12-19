@@ -19,7 +19,7 @@ def query():
                             cursor_factory=psycopg2.extras.DictCursor)
     cur = conn.cursor()
     
-    sql_file = "input4_emf.sql"
+    sql_file = "input5_emf.sql"
     with open(sql_file,"r") as f:
         query = f.read()
         

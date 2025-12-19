@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('prod', 'year', 'month')
+    group = ('month', 'prod', 'year')
     
     for column in group:
         if column not in column_names:
@@ -45,6 +45,7 @@ def query():
     #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
+        
         rowchecktuple = tuple(row[attr] for attr in group)
         for groupingattributekey in mfstruct:
             try:
@@ -69,6 +70,9 @@ def query():
                    denom += 1
                    avg = num/denom
                    mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
+                   if row["prod"] == "Grapes" and row["month"] == 5 and row["state"] == "NJ" and row["year"] == 2020:
+                       print(row)
+                       print(mfstruct[groupingattributekey]) 
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -78,7 +82,9 @@ def query():
     #Having clause
 
 
-
+    for groupingattribute in mfstruct:
+        if "Grapes" in groupingattribute and 5 in groupingattribute:
+            print(mfstruct[groupingattribute])
     #Projection
     for groupingattributekey, aggrfuncmap in mfstruct.items():
         row = dict()
