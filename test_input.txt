@@ -9,5 +9,6 @@ F-VECT([F]):
 SELECT CONDITION-VECT([σ]):
 1.prod = prod AND 1.month = month AND 1.year = year
 2.prod = prod AND 2.year = year
+3.year = year
 HAVING_CONDITION(G):
-1_sum_quant > 2_avg_quant
+1_sum_quant > 3_avg_quant

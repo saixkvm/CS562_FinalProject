@@ -2,7 +2,8 @@ import subprocess
 import re
 def input_processing():
     
-        with open("test_input.txt", "r") as f:
+        input_file = "input4_emf.txt"
+        with open(input_file, "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -343,7 +344,7 @@ if "__main__" == __name__:
     main()
     """
     # Write the generated code to a file
-    written_file = "test_input_generated.py"
+    written_file = "input4_emf_generated.py"
     open(written_file, "w").write(tmp)
     # Execute the generated code
     subprocess.run(["python", written_file])
