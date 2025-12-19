@@ -70,9 +70,6 @@ def query():
                    denom += 1
                    avg = num/denom
                    mfstruct[groupingattributekey]['3_avg_quant'] = [num, denom, avg]
-                   if row["prod"] == "Grapes" and row["month"] == 5 and row["state"] == "NJ" and row["year"] == 2020:
-                       print(row)
-                       print(mfstruct[groupingattributekey]) 
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -82,9 +79,6 @@ def query():
     #Having clause
 
 
-    for groupingattribute in mfstruct:
-        if "Grapes" in groupingattribute and 5 in groupingattribute:
-            print(mfstruct[groupingattribute])
     #Projection
     for groupingattributekey, aggrfuncmap in mfstruct.items():
         row = dict()
