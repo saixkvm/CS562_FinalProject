@@ -24,12 +24,23 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
+    # Tuple of the group by columns
     group = ('year',)
     
     for column in group:
         if column not in column_names:
             raise ValueError("Unknown Column")
     #Creating the mfstruct
+    # Structure of MFStruct
+    # (
+    #    (group by values) ->
+    #                          (
+    #                              group by attr -> value
+    #                              ...
+    #                              group by attr -> value
+    #                              aggregate function -> some baseline value
+    #                              ...
+    #                              aggregate function -> some baseline value))
     for row in cur:
         current_group = tuple([row[attr] for attr in group])
         mfstruct[current_group] = dict()
@@ -51,6 +62,7 @@ def query():
     cur.execute("SELECT * FROM sales")
     for row in cur:
         rowchecktuple = tuple(row[attr] for attr in group)
+        # Look over all the keys in MF Struct
         for groupingattributekey in mfstruct:
             try:
                #Grouping variable 1
