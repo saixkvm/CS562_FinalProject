@@ -1,9 +1,5 @@
 SELECT ATTRIBUTE(S):
-<<<<<<< HEAD
-cust,prod, 1_sum_quant, 2_sum_quant, 3_sum_quant, 4_sum_quant, 3_avg_quant
-=======
 cust,prod, 1_sum_quant, 2_sum_quant, 3_sum_quant
->>>>>>> c9f7963453ebe9c0757db4ae30399c202e018b94
 NUMBER OF GROUPING VARIABLES(n):
 3
 GROUPING ATTRIBUTES(V):
