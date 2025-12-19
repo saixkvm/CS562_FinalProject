@@ -321,6 +321,7 @@ def main():
     cur.execute("SELECT * FROM sales")
     for row in cur:
         rowchecktuple = tuple(row[attr] for attr in group)
+        # Look over all the keys in MF Struct
         for groupingattributekey in mfstruct:
             try:
 {create_predicates(predicatehashmap, vectorOfAggregateFunctions)} 
