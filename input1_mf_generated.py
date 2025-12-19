@@ -41,7 +41,6 @@ def query():
         mfstruct[current_group]['3_sum_quant'] = 0
         mfstruct[current_group]['2_min_quant'] = float('inf')
         mfstruct[current_group]['2_sum_quant'] = 0
-        mfstruct[current_group]['4_sum_quant'] = 0
 
     
 
@@ -68,9 +67,6 @@ def query():
                if rowchecktuple == groupingattributekey and (row['state'] == 'NY'):
                    mfstruct[groupingattributekey]['2_min_quant'] = min(mfstruct[groupingattributekey]['2_min_quant'], row['quant'])
                    mfstruct[groupingattributekey]['2_sum_quant'] += row['quant']
-               #Grouping variable 4
-               if rowchecktuple == groupingattributekey:
-                   mfstruct[groupingattributekey]['4_sum_quant'] += row['quant']
  
             except KeyError:
                 raise ValueError("A grouping variable has an unknown column")
@@ -90,7 +86,6 @@ def query():
         row['1_sum_quant'] = aggrfuncmap['1_sum_quant']
         row['2_sum_quant'] = aggrfuncmap['2_sum_quant']
         row['3_sum_quant'] = aggrfuncmap['3_sum_quant']
-        row['4_sum_quant'] = aggrfuncmap['4_sum_quant']
 
         _global.append(row)
     

@@ -84,7 +84,8 @@ def query():
                         headers="keys", tablefmt="psql")
 
 def main():
-    print(query())
+    query()
+    # print(query())
     
 if "__main__" == __name__:
     main()

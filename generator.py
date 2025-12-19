@@ -21,7 +21,8 @@ Having clause
 '''
 def input_processing():
     
-        with open("input_mf.txt", "r") as f:
+        input_file = "input5_emf.txt"
+        with open(input_file, "r") as f:
             data = f.read()
 
         parts = data.split(":")
@@ -378,7 +379,8 @@ if "__main__" == __name__:
     main()
     """
     # Write the generated code to a file
-    open("input.py", "w").write(tmp)
+    written_file = "input5_emf_generated.py"
+    open(written_file, "w").write(tmp)
     # Execute the generated code
     subprocess.run(["python", "input.py"])
 

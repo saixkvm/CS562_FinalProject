@@ -24,7 +24,7 @@ def query():
     column_names = [desc[0] for desc in cur.description]
     
     mfstruct = {}
-    group = ('prod', 'year', 'month')
+    group = ('month', 'prod', 'year')
     
     for column in group:
         if column not in column_names:
@@ -45,6 +45,7 @@ def query():
     #We just check the groups if the grouping variable doesn't have a predicate
     cur.execute("SELECT * FROM sales")
     for row in cur:
+        
         rowchecktuple = tuple(row[attr] for attr in group)
         for groupingattributekey in mfstruct:
             try:
@@ -76,7 +77,6 @@ def query():
 
 
     #Having clause
-
 
 
     #Projection
