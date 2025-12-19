@@ -21,7 +21,7 @@ Having clause
 '''
 def input_processing():
     
-        input_file = "input5_emf.txt"
+        input_file = "input4_emf.txt"
         with open(input_file, "r") as f:
             data = f.read()
 
@@ -326,8 +326,8 @@ def main():
         for groupingattributekey in mfstruct:
             try:
 {create_predicates(predicatehashmap, vectorOfAggregateFunctions)} 
-                except KeyError:
-                    raise ValueError("A grouping variable has an unknown column")
+            except KeyError:
+                raise ValueError("A grouping variable has an unknown column")
 
 
 
@@ -379,10 +379,10 @@ if "__main__" == __name__:
     main()
     """
     # Write the generated code to a file
-    written_file = "input5_emf_generated.py"
+    written_file = "input4_emf_generated.py"
     open(written_file, "w").write(tmp)
     # Execute the generated code
-    subprocess.run(["python", "input.py"])
+    subprocess.run(["python", written_file])
 
 
 if "__main__" == __name__:
